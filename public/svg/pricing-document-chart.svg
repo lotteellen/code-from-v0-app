@@ -1,0 +1,57 @@
+<svg width="800" height="800" viewBox="0 0 800 800" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <!-- Removed grey background -->
+  
+  <!-- Standardized document container -->
+  <defs>
+    <filter id="cardShadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="8"/>
+      <feOffset dx="0" dy="4" result="offsetblur"/>
+      <feComponentTransfer>
+        <feFuncA type="linear" slope="0.15"/>
+      </feComponentTransfer>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Main document card with rounded corners -->
+  <path d="M 154 101 C 154 85.536 166.536 73 182 73 L 565 73 L 565 83 L 604 122 L 626 122 L 626 645 C 626 660.464 613.464 673 598 673 L 182 673 C 166.536 673 154 660.464 154 645 Z" 
+        fill="white" 
+        filter="url(#cardShadow)" 
+        stroke="#D1D5DB" 
+        stroke-width="2"/>
+  
+  <!-- Smaller folded corner flap -->
+  <path d="M 565 73 L 565 83 C 565 102 583 122 604 122 L 626 122 L 565 73 Z" 
+        fill="#E5E7EB" 
+        stroke="#D1D5DB" 
+        stroke-width="2"/>
+  
+  <!-- Fold line for subtle depth -->
+  <line x1="565" y1="83" x2="604" y2="122" stroke="#D1D5DB" stroke-width="1" opacity="0.4"/>
+  
+  <!-- Title -->
+  <text x="324" y="172" font-family="system-ui, -apple-system, sans-serif" font-size="50" font-weight="400" fill="#9CA3AF">pricing.pdf</text>
+  
+  <!-- Standardized placeholder lines -->
+  <rect x="213" y="230" width="358" height="16" rx="8" fill="#F3F4F6"/>
+  <rect x="213" y="269" width="328" height="16" rx="8" fill="#F3F4F6"/>
+  <rect x="213" y="308" width="285" height="16" rx="8" fill="#F3F4F6"/>
+  <rect x="213" y="347" width="320" height="16" rx="8" fill="#F3F4F6"/>
+  
+  <!-- Chart container -->
+  <rect x="213" y="406" width="358" height="211" rx="8" fill="none" stroke="#E5E7EB" stroke-width="1"/>
+  
+  <!-- Standardized chart lines with consistent stroke width -->
+  <path d="M 246 555 L 282 540 L 318 528 L 354 520 L 390 500 L 426 484 L 462 461 L 498 446 L 534 437" 
+        stroke="#6B9DD4" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  
+  <path d="M 246 582 L 282 574 L 318 563 L 354 555 L 390 537 L 426 512 L 462 480 L 498 457 L 534 441" 
+        stroke="#F5C563" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  
+  <path d="M 246 590 L 282 586 L 318 582 L 354 578 L 390 563 L 426 543 L 462 519 L 498 500 L 534 488" 
+        stroke="#E48B8B" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+</svg>

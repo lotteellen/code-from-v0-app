@@ -1,0 +1,63 @@
+<svg width="800" height="800" viewBox="0 0 800 800" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="800" height="800" fill="#F9FAFB"/>
+  
+  <!-- Standardized background card with proper proportions -->
+  <defs>
+    <filter id="cardShadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="8"/>
+      <feOffset dx="0" dy="4" result="offsetblur"/>
+      <feComponentTransfer>
+        <feFuncA type="linear" slope="0.15"/>
+      </feComponentTransfer>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <rect x="45" y="36" width="640" height="728" rx="24" fill="#FFFFFF" filter="url(#cardShadow)" stroke="#D1D5DB" stroke-width="2"/>
+  
+  <!-- SID header -->
+  <text x="92" y="103" font-family="system-ui, -apple-system, sans-serif" font-size="38" fill="#9CA3AF" font-weight="500">SID</text>
+  
+  <!-- Standardized dividers -->
+  <line x1="92" y1="130" x2="628" y2="130" stroke="#E5E7EB" stroke-width="2"/>
+  
+  <!-- Thinking section -->
+  <text x="92" y="182" font-family="system-ui, -apple-system, sans-serif" font-size="33" fill="#1F2937" font-weight="600">Thinking</text>
+  
+  <!-- Standardized thinking box -->
+  <rect x="92" y="200" width="536" height="72" rx="10" fill="none" stroke="#E5E7EB" stroke-width="1"/>
+  <rect x="112" y="222" width="200" height="16" rx="8" fill="#E5E7EB"/>
+  
+  <line x1="92" y1="279" x2="628" y2="279" stroke="#E5E7EB" stroke-width="2"/>
+  
+  <!-- Plan section -->
+  <text x="92" y="331" font-family="system-ui, -apple-system, sans-serif" font-size="33" fill="#1F2937" font-weight="600">Plan</text>
+  
+  <!-- Standardized checkmarks with consistent styling -->
+  <circle cx="110" cy="367" r="19" fill="#6EE7B7"/>
+  <path d="M 102 367 L 108 373 L 118 360" stroke="#FFFFFF" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="143" y="374" font-family="system-ui, -apple-system, sans-serif" font-size="25" fill="#4B5563">Seercliov calls there</text>
+  
+  <circle cx="110" cy="409" r="19" fill="#6EE7B7"/>
+  <path d="M 102 409 L 108 415 L 118 402" stroke="#FFFFFF" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="143" y="416" font-family="system-ui, -apple-system, sans-serif" font-size="25" fill="#4B5563">Searcheryalls there</text>
+  
+  <circle cx="110" cy="452" r="19" fill="#6EE7B7"/>
+  <path d="M 102 452 L 108 458 L 118 445" stroke="#FFFFFF" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="143" y="459" font-family="system-ui, -apple-system, sans-serif" font-size="25" fill="#4B5563">Answer there</text>
+  
+  <line x1="92" y1="494" x2="628" y2="494" stroke="#E5E7EB" stroke-width="2"/>
+  
+  <!-- Answer section -->
+  <text x="92" y="546" font-family="system-ui, -apple-system, sans-serif" font-size="33" fill="#1F2937" font-weight="600">Answer</text>
+  
+  <!-- Standardized answer boxes -->
+  <rect x="92" y="564" width="536" height="72" rx="10" fill="none" stroke="#E5E7EB" stroke-width="1"/>
+  <rect x="112" y="586" width="304" height="16" rx="8" fill="#E5E7EB"/>
+  
+  <rect x="92" y="631" width="536" height="72" rx="10" fill="none" stroke="#E5E7EB" stroke-width="1"/>
+  <rect x="112" y="653" width="264" height="16" rx="8" fill="#E5E7EB"/>
+</svg>

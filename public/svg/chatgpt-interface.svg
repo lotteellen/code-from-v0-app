@@ -1,0 +1,45 @@
+<svg width="800" height="800" viewBox="0 0 800 800" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <!-- Removed grey background -->
+  
+  <!-- Consistent shadow filter -->
+  <defs>
+    <filter id="cardShadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="8"/>
+      <feOffset dx="0" dy="4" result="offsetblur"/>
+      <feComponentTransfer>
+        <feFuncA type="linear" slope="0.15"/>
+      </feComponentTransfer>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Standardized main container -->
+  <rect x="70" y="164" width="660" height="488" rx="24" fill="white" filter="url(#cardShadow)" stroke="#D1D5DB" stroke-width="2"/>
+  
+  <!-- Window controls -->
+  <circle cx="117" cy="209" r="10" fill="#EF4444"/>
+  <circle cx="154" cy="209" r="10" fill="#F59E0B"/>
+  <circle cx="191" cy="209" r="10" fill="#10B981"/>
+  
+  <!-- Title -->
+  <text x="323" y="223" font-family="system-ui, -apple-system, sans-serif" font-size="40" font-weight="400" fill="#9CA3AF">ChatGPT</text>
+  
+  <!-- Standardized chat bubble -->
+  <rect x="535" y="269" width="162" height="92" rx="16" fill="#B9D5F5"/>
+  <rect x="569" y="305" width="94" height="22" rx="11" fill="#9AC0E8"/>
+  
+  <!-- Standardized placeholder messages -->
+  <rect x="121" y="402" width="333" height="22" rx="11" fill="#F3F4F6"/>
+  <rect x="121" y="449" width="258" height="22" rx="11" fill="#F3F4F6"/>
+  
+  <!-- Standardized input field -->
+  <rect x="102" y="539" width="596" height="82" rx="20" fill="white" stroke="#D1D5DB" stroke-width="2"/>
+  
+  <!-- Send button arrow -->
+  <path d="M 660 580 L 680 580 L 670 570" stroke="#9CA3AF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <path d="M 660 580 L 680 580 L 670 590" stroke="#9CA3AF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+</svg>

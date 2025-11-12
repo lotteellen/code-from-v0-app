@@ -1,0 +1,52 @@
+<svg width="800" height="800" viewBox="0 0 800 800" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="800" height="800" fill="#F9FAFB"/>
+  
+  <!-- Standardized database cylinder with consistent stroke -->
+  <ellipse cx="400" cy="219" rx="125" ry="55" fill="white" stroke="#D1D5DB" stroke-width="2"/>
+  <ellipse cx="400" cy="219" rx="125" ry="55" fill="#F9FAFB" opacity="0.5"/>
+  
+  <!-- Middle section -->
+  <rect x="275" y="219" width="250" height="70" fill="white"/>
+  <line x1="275" y1="289" x2="275" y2="219" stroke="#D1D5DB" stroke-width="2"/>
+  <line x1="525" y1="289" x2="525" y2="219" stroke="#D1D5DB" stroke-width="2"/>
+  
+  <!-- Middle ellipse -->
+  <ellipse cx="400" cy="289" rx="125" ry="55" fill="none" stroke="#D1D5DB" stroke-width="2"/>
+  
+  <!-- Bottom section -->
+  <rect x="275" y="289" width="250" height="70" fill="white"/>
+  <line x1="275" y1="359" x2="275" y2="289" stroke="#D1D5DB" stroke-width="2"/>
+  <line x1="525" y1="359" x2="525" y2="289" stroke="#D1D5DB" stroke-width="2"/>
+  
+  <!-- Bottom ellipse -->
+  <ellipse cx="400" cy="359" rx="125" ry="55" fill="white" stroke="#D1D5DB" stroke-width="2"/>
+  
+  <!-- Standardized search bar with consistent styling -->
+  <defs>
+    <filter id="cardShadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="8"/>
+      <feOffset dx="0" dy="4" result="offsetblur"/>
+      <feComponentTransfer>
+        <feFuncA type="linear" slope="0.15"/>
+      </feComponentTransfer>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <rect x="61" y="345" width="678" height="111" rx="56" fill="white" filter="url(#cardShadow)" stroke="#D1D5DB" stroke-width="2"/>
+  
+  <!-- Search icon -->
+  <circle cx="181" cy="401" r="30" fill="none" stroke="#9CA3AF" stroke-width="6"/>
+  <line x1="203" y1="423" x2="223" y2="443" stroke="#9CA3AF" stroke-width="6" stroke-linecap="round"/>
+  
+  <!-- Search text -->
+  <text x="252" y="418" font-family="system-ui, -apple-system, sans-serif" font-size="44" font-weight="300" fill="#9CA3AF">Search</text>
+  
+  <!-- Standardized placeholder lines -->
+  <rect x="188" y="504" width="359" height="14" rx="7" fill="#F3F4F6"/>
+  <rect x="188" y="555" width="426" height="14" rx="7" fill="#F3F4F6"/>
+  <rect x="188" y="605" width="242" height="14" rx="7" fill="#F3F4F6"/>
+</svg>

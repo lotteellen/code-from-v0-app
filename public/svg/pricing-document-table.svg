@@ -1,0 +1,64 @@
+<svg width="800" height="800" viewBox="0 0 800 800" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <!-- Removed grey background -->
+  
+  <!-- Standardized shadow filter -->
+  <defs>
+    <filter id="cardShadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="8"/>
+      <feOffset dx="0" dy="4" result="offsetblur"/>
+      <feComponentTransfer>
+        <feFuncA type="linear" slope="0.15"/>
+      </feComponentTransfer>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Main document path with cutout for folded corner -->
+  <path d="M 154 101 C 154 85.536 166.536 73 182 73 L 565 73 L 565 83 L 604 122 L 626 122 L 626 645 C 626 660.464 613.464 673 598 673 L 182 673 C 166.536 673 154 660.464 154 645 Z" 
+        fill="white" 
+        filter="url(#cardShadow)" 
+        stroke="#D1D5DB" 
+        stroke-width="2"/>
+  
+  <!-- Smaller folded corner flap -->
+  <path d="M 565 73 L 565 83 C 565 102 583 122 604 122 L 626 122 L 565 73 Z" 
+        fill="#E5E7EB" 
+        stroke="#D1D5DB" 
+        stroke-width="2"/>
+  
+  <!-- Fold line for subtle depth -->
+  <line x1="565" y1="83" x2="604" y2="122" stroke="#D1D5DB" stroke-width="1" opacity="0.4"/>
+  
+  <!-- Title -->
+  <text x="324" y="172" font-family="system-ui, -apple-system, sans-serif" font-size="50" font-weight="400" fill="#9CA3AF">pricing.pdf</text>
+  
+  <!-- Standardized placeholder lines with consistent spacing and border radius -->
+  <rect x="213" y="230" width="358" height="16" rx="8" fill="#F3F4F6"/>
+  <rect x="213" y="269" width="352" height="16" rx="8" fill="#F3F4F6"/>
+  <rect x="213" y="308" width="273" height="16" rx="8" fill="#F3F4F6"/>
+  <rect x="213" y="347" width="281" height="16" rx="8" fill="#F3F4F6"/>
+  
+  <!-- Table container -->
+  <rect x="213" y="406" width="358" height="199" rx="8" fill="none" stroke="#E5E7EB" stroke-width="1"/>
+  
+  <!-- Consistent table grid with standardized stroke -->
+  <line x1="238" y1="437" x2="546" y2="437" stroke="#E5E7EB" stroke-width="1"/>
+  <line x1="238" y1="468" x2="546" y2="468" stroke="#E5E7EB" stroke-width="1"/>
+  <line x1="238" y1="499" x2="546" y2="499" stroke="#E5E7EB" stroke-width="1"/>
+  <line x1="238" y1="530" x2="546" y2="530" stroke="#E5E7EB" stroke-width="1"/>
+  <line x1="238" y1="561" x2="546" y2="561" stroke="#E5E7EB" stroke-width="1"/>
+  
+  <!-- Table placeholder content -->
+  <rect x="238" y="460" width="180" height="10" rx="5" fill="#E5E7EB"/>
+  <rect x="441" y="460" width="105" height="10" rx="5" fill="#E5E7EB"/>
+  <rect x="238" y="491" width="180" height="10" rx="5" fill="#E5E7EB"/>
+  <rect x="441" y="491" width="105" height="10" rx="5" fill="#E5E7EB"/>
+  <rect x="238" y="522" width="180" height="10" rx="5" fill="#E5E7EB"/>
+  <rect x="441" y="522" width="105" height="10" rx="5" fill="#E5E7EB"/>
+  <rect x="238" y="553" width="180" height="10" rx="5" fill="#E5E7EB"/>
+  <rect x="441" y="553" width="105" height="10" rx="5" fill="#E5E7EB"/>
+</svg>

@@ -1,0 +1,47 @@
+<svg width="800" height="800" viewBox="0 0 800 800" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <!-- Removed grey background -->
+  
+  <!-- Added consistent shadow filter -->
+  <defs>
+    <filter id="cardShadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="8"/>
+      <feOffset dx="0" dy="4" result="offsetblur"/>
+      <feComponentTransfer>
+        <feFuncA type="linear" slope="0.15"/>
+      </feComponentTransfer>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Standardized background card -->
+  <rect x="94" y="55" width="518" height="690" rx="22" fill="#FFFFFF" filter="url(#cardShadow)" stroke="#D1D5DB" stroke-width="2"/>
+  
+  <!-- Thinking section -->
+  <text x="159" y="173" font-family="system-ui, -apple-system, sans-serif" font-size="38" fill="#374151" font-weight="600">Thinking...</text>
+  
+  <!-- Standardized divider -->
+  <line x1="94" y1="232" x2="612" y2="232" stroke="#E5E7EB" stroke-width="2"/>
+  
+  <!-- Plan section -->
+  <text x="159" y="330" font-family="system-ui, -apple-system, sans-serif" font-size="41" fill="#4B5563" font-weight="600">Plan</text>
+  
+  <!-- Standardized checkboxes with consistent styling -->
+  <rect x="161" y="373" width="55" height="55" rx="10" fill="none" stroke="#D1D5DB" stroke-width="2"/>
+  <path d="M 175 400 L 186 411 L 208 385" stroke="#A7F3D0" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="248" y="385" width="377" height="17" rx="8" fill="#E5E7EB"/>
+  <rect x="248" y="415" width="306" height="17" rx="8" fill="#E5E7EB"/>
+  
+  <rect x="161" y="468" width="55" height="55" rx="10" fill="none" stroke="#D1D5DB" stroke-width="2"/>
+  <path d="M 175 495 L 186 506 L 208 480" stroke="#A7F3D0" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="248" y="480" width="322" height="17" rx="8" fill="#E5E7EB"/>
+  <rect x="248" y="510" width="377" height="17" rx="8" fill="#E5E7EB"/>
+  
+  <rect x="161" y="563" width="55" height="55" rx="10" fill="none" stroke="#D1D5DB" stroke-width="2"/>
+  <path d="M 175 590 L 186 601 L 208 575" stroke="#A7F3D0" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="248" y="575" width="377" height="17" rx="8" fill="#E5E7EB"/>
+  <rect x="248" y="605" width="306" height="17" rx="8" fill="#E5E7EB"/>
+</svg>
