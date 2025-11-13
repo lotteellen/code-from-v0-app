@@ -216,11 +216,18 @@
   background: linear-gradient(
     90deg,
     transparent 0%,
-    rgba(255, 255, 255, 0.6) 30%,
-    rgba(255, 255, 255, 0.7) 50%,
-    rgba(255, 255, 255, 0.6) 70%,
+    rgba(255, 255, 255, 0.2) 15%,
+    rgba(255, 255, 255, 0.4) 30%,
+    rgba(255, 255, 255, 0.6) 42%,
+    rgba(255, 255, 255, 0.75) 48%,
+    rgba(255, 255, 255, 0.8) 50%,
+    rgba(255, 255, 255, 0.75) 52%,
+    rgba(255, 255, 255, 0.6) 58%,
+    rgba(255, 255, 255, 0.4) 70%,
+    rgba(255, 255, 255, 0.2) 85%,
     transparent 100%
   );
+  filter: blur(0.5px);
   animation: textShimmer 1.2s ease-out infinite;
   pointer-events: none;
   z-index: 2;
@@ -271,14 +278,14 @@
   pointer-events: none;
 }
 
-/* Text highlight - behind text, see-through, no rounded corners */
-.text-highlight-active {
+/* Text focus - behind text, see-through, no rounded corners */
+.text-focus-active {
   position: relative;
   overflow: visible;
   z-index: 0;
 }
 
-.text-highlight-active::after {
+.text-focus-active::before {
   content: "";
   position: absolute;
   top: 0;
@@ -294,17 +301,20 @@
 /* Word highlight - left to right animation */
 .word-highlight-active {
   position: relative;
-  overflow: hidden;
-  padding: 0px 1px;
-  display: inline-block;
+  overflow: visible;
+  padding: 0;
+  margin: 0;
+  display: inline;
+  line-height: inherit;
+  vertical-align: baseline;
 }
 
 .word-highlight-active::after {
   content: "";
   position: absolute;
   top: 0;
-  left: 0;
-  width: 100%;
+  left: -1px;
+  width: calc(100% + 2px);
   height: 100%;
   background: var(--bright-yellow);
   animation: highlightLeftToRight 0.8s ease-out forwards;
@@ -344,40 +354,52 @@
   animation: revealLeftToRight 0.6s ease-out forwards;
 }
 
-/* Highlight animation for post request - left to right reveal */
-@keyframes highlightReveal {
-  from {
-    width: 0%;
-  }
-  to {
-    width: 100%;
-  }
-}
-
+/* Highlight animation for post request - uses same animation as word-highlight */
 .highlight-animate {
   position: relative;
+  overflow: visible;
+  padding: 0;
+  margin: 0;
+  display: inline;
+  line-height: inherit;
+  vertical-align: baseline;
+  z-index: 1;
 }
 
-.highlight-animate::before {
+.highlight-animate::after {
   content: "";
   position: absolute;
   top: 0;
-  left: 0;
+  left: -1px;
+  width: calc(100% + 2px);
   height: 100%;
-  background: inherit;
-  animation: highlightReveal 0.6s ease-out forwards;
+  background: transparent;
+  animation: highlightLeftToRight 0.8s ease-out forwards;
   pointer-events: none;
-  z-index: 0;
+  z-index: -1;
 }
 
-.highlight-context::before {
-  background: rgba(40, 200, 64, 0.3);
+.highlight-animate.highlight-context::after {
+  background: rgba(40, 200, 64, 0.3) !important;
 }
 
-.highlight-message::before {
-  background: var(--light-blue);
+.highlight-animate.highlight-documents::after {
+  background: var(--bright-yellow) !important;
 }
 
-.highlight-animate-delay::before {
-  animation-delay: 0.3s;
+.highlight-animate.highlight-message::after {
+  background: var(--light-blue) !important;
+}
+
+.highlight-animate.highlight-context.highlight-offset::after,
+.highlight-animate.highlight-documents.highlight-offset::after,
+.highlight-animate.highlight-message.highlight-offset::after {
+  height: calc(100% + 0.5px);
+  top: 0.5px;
+}
+
+.baby-document-wrapper {
+  transform: scale(0.75) !important;
+  transform-origin: center;
+  overflow: visible;
 }

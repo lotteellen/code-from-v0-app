@@ -96,8 +96,12 @@ export function DatabaseSearchCard({
 }) {
   const [displayedText, setDisplayedText] = useState("")
   const [highlighted, setHighlighted] = useState(true)
-  const [highlightWords, setHighlightWords] = useState(false)
-  const [highlightKey, setHighlightKey] = useState(0)
+  const [highlightEnterprise, setHighlightEnterprise] = useState(false)
+  const [highlightPricing, setHighlightPricing] = useState(false)
+  const [highlightSMB, setHighlightSMB] = useState(false)
+  const [enterpriseKey, setEnterpriseKey] = useState(0)
+  const [pricingKey, setPricingKey] = useState(0)
+  const [smbKey, setSmbKey] = useState(0)
   const [isSearching, setIsSearching] = useState(false)
 
   const handleAddText = () => {
@@ -108,13 +112,33 @@ export function DatabaseSearchCard({
     setHighlighted(false)
   }
 
-  const handleHighlightWords = () => {
-    if (!highlightWords) {
+  const handleHighlightEnterprise = () => {
+    if (!highlightEnterprise) {
       // Starting highlight - reset key to restart animation
-      setHighlightKey(prev => prev + 1)
-      setHighlightWords(true)
+      setEnterpriseKey(prev => prev + 1)
+      setHighlightEnterprise(true)
     } else {
-      setHighlightWords(false)
+      setHighlightEnterprise(false)
+    }
+  }
+
+  const handleHighlightPricing = () => {
+    if (!highlightPricing) {
+      // Starting highlight - reset key to restart animation
+      setPricingKey(prev => prev + 1)
+      setHighlightPricing(true)
+    } else {
+      setHighlightPricing(false)
+    }
+  }
+
+  const handleHighlightSMB = () => {
+    if (!highlightSMB) {
+      // Starting highlight - reset key to restart animation
+      setSmbKey(prev => prev + 1)
+      setHighlightSMB(true)
+    } else {
+      setHighlightSMB(false)
     }
   }
 
@@ -126,6 +150,18 @@ export function DatabaseSearchCard({
     setTimeout(() => {
       setIsSearching(false)
     }, 2000)
+  }
+
+  const handleReset = () => {
+    setDisplayedText("")
+    setHighlighted(true)
+    setHighlightEnterprise(false)
+    setHighlightPricing(false)
+    setHighlightSMB(false)
+    setEnterpriseKey(0)
+    setPricingKey(0)
+    setSmbKey(0)
+    setIsSearching(false)
   }
 
   // Normal mode: dark grey fill with white stroke
@@ -171,14 +207,22 @@ export function DatabaseSearchCard({
             minWidth: "196px"
           }}>
             <SearchIcon isSearching={isSearching} />
-            <span className={`styling-text overflow-hidden whitespace-nowrap text-ellipsis flex-1 line-height-1 ${highlighted ? "text-highlight-active" : ""} ${isSearching ? "text-pulse" : ""}`} style={{ position: "relative", display: "inline-block" }}>
-              {highlightWords && displayedText ? (
+            <span className={`styling-text overflow-hidden whitespace-nowrap text-ellipsis flex-1 line-height-1 ${highlighted ? "text-focus-active" : ""} ${isSearching ? "text-pulse" : ""}`} style={{ position: "relative", display: "inline-block" }}>
+              {(highlightEnterprise || highlightPricing || highlightSMB) && displayedText ? (
                 <span style={{ position: "relative", zIndex: 1 }}>
-                  {displayedText.split(/(enterprise|pricing)/i).map((part, index) => {
-                    const isHighlight = /^(enterprise|pricing)$/i.test(part)
-                    return isHighlight ? (
+                  {displayedText.split(/(enterprise|pricing|SMB)/i).map((part, index) => {
+                    const isEnterprise = /^enterprise$/i.test(part)
+                    const isPricing = /^pricing$/i.test(part)
+                    const isSMB = /^SMB$/i.test(part)
+                    const shouldHighlight = (isEnterprise && highlightEnterprise) || (isPricing && highlightPricing) || (isSMB && highlightSMB)
+                    let highlightKey = `text-${index}`
+                    if (isEnterprise) highlightKey = `enterprise-${enterpriseKey}-${index}`
+                    else if (isPricing) highlightKey = `pricing-${pricingKey}-${index}`
+                    else if (isSMB) highlightKey = `smb-${smbKey}-${index}`
+                    
+                    return shouldHighlight ? (
                       <span
-                        key={`${highlightKey}-${index}`}
+                        key={highlightKey}
                         className="word-highlight-active"
                         style={{
                           position: "relative",
@@ -188,7 +232,7 @@ export function DatabaseSearchCard({
                         {part}
                       </span>
                     ) : (
-                      <span key={`${highlightKey}-${index}`}>{part}</span>
+                      <span key={highlightKey}>{part}</span>
                     )
                   })}
                 </span>
@@ -210,13 +254,22 @@ export function DatabaseSearchCard({
           Add Text
         </Button>
         <Button onClick={handleHighlight} size="sm">
-          Remove Highlight
+          Remove Focus
         </Button>
-        <Button onClick={handleHighlightWords} size="sm" disabled={!displayedText}>
-          Highlight
+        <Button onClick={handleHighlightEnterprise} size="sm" disabled={!displayedText}>
+          Highlight Enterprise
+        </Button>
+        <Button onClick={handleHighlightPricing} size="sm" disabled={!displayedText}>
+          Highlight Pricing
+        </Button>
+        <Button onClick={handleHighlightSMB} size="sm" disabled={!displayedText}>
+          Highlight SMB
         </Button>
         <Button onClick={handleSearch} size="sm" disabled={!displayedText || isSearching}>
           Search
+        </Button>
+        <Button onClick={handleReset} size="sm">
+          Reset
         </Button>
       </div>
       {searchBarContent}

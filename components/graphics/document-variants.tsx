@@ -1,10 +1,31 @@
+import { useState, useEffect } from "react"
 import { DummyLine, DummyParagraph } from "./helpers/dummy-helpers"
 import { Document } from "./helpers/document"
+import { Button } from "@/components/ui/button"
 import "../graphics/helpers/globals.css"
 
 
 
-export function DocumentVariants({title = "Document", variant, highlightDummy }: { title?: string; variant: string; highlightDummy?: boolean}) {
+export function DocumentVariants({title = "Document", variant, highlightDummy , baby = false}: { title?: string; variant: string; highlightDummy?: boolean; baby?: boolean}) {
+  const [internalHighlightDummyKey, setInternalHighlightDummyKey] = useState(0)
+  const [internalShouldHighlight, setInternalShouldHighlight] = useState(false)
+
+  // Reset highlight when variant changes
+  useEffect(() => {
+    setInternalShouldHighlight(false)
+    setInternalHighlightDummyKey(0)
+  }, [variant])
+
+  const handleHighlightClick = () => {
+    if (variant === "simple") {
+      setInternalShouldHighlight(false) // Reset first
+      setInternalHighlightDummyKey(prev => prev + 1) // Increment key to force re-render
+      // Then trigger highlight after a brief delay to ensure re-render happens first
+      setTimeout(() => {
+        setInternalShouldHighlight(true)
+      }, 10)
+    }
+  }
   
     const getContent = (): React.ReactNode => {
       if (variant === "table") return <TableContent />
@@ -12,12 +33,25 @@ export function DocumentVariants({title = "Document", variant, highlightDummy }:
       if (variant === "chart2") return <ChartContent2 />
       if (variant === "bullets") return <BulletsContent />
       if (variant === "image") return <ImageContent />
-      if (variant === "simple") return <SimpleContent highlightDummy={highlightDummy} />
+      if (variant === "simple") return <SimpleContent key={`simple-${internalHighlightDummyKey}`} highlightDummy={internalShouldHighlight} />
     }
-    return (
-
-    <Document title={variant+".pdf"} content={getContent()} />
-  )
+    
+    const documentContent = (
+        <Document title={baby ? "baby.pdf" : variant+".pdf"} content={getContent()} />
+    )
+    
+    // Apply baby scaling to any variant if baby is true
+    if (baby) {
+      return (
+        <div className="flex flex-col gap-2 items-center justify-center">
+          <div style={{ transform: "scale(0.75)", transformOrigin: "center" }}>
+          {documentContent}
+          </div>
+        </div>
+      )
+    }
+    
+    return documentContent
 }
 
 

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { DocumentVariants } from "@/components/graphics/document-variants"
 import { DatabaseSearchCard } from "@/components/graphics/database-search-card"
 import { ChatGPTCard } from "@/components/graphics/chatgpt-card"
@@ -19,18 +19,16 @@ const completedSVGFiles = [
   "sheet-spreadsheet.svg",
   "subject-email.svg",
   "chatgpt-interface.svg",
-  "database-search.svg",
+  "post-request.svg"
 ]
 
 const incompleteSVGFiles = [
-  "post-request.svg",
+  "database-search.svg",
   "reasoning-model.svg",
 ]
 
 export default function Home() {
   const [selectedSvg, setSelectedSvg] = useState<string | null>(null)
-  const [highlightDummyKey, setHighlightDummyKey] = useState(0)
-  const [shouldHighlight, setShouldHighlight] = useState(false)
 
   const getComponentForSvg = (file: string): { component: React.ReactNode; width: string } | null => {
     const name = file.replace('.svg', '')
@@ -39,7 +37,7 @@ export default function Home() {
     if (name === 'subject-email') return { component: <EmailCard />, width: "80px" }
     if (name.startsWith('pricing-document-')) {
       const variant = name.replace('pricing-document-', '')
-      return { component: <DocumentVariants key={variant === "simple" ? `simple-${highlightDummyKey}` : undefined} title={variant} variant={variant} highlightDummy={variant === "simple" && shouldHighlight} />, width: "80px" }
+      return { component: <DocumentVariants title={variant} variant={variant} />, width: "80px" }
     }
     
     if (name === 'chatgpt-interface') return { component: <ChatGPTCard />, width: "200px" }
@@ -48,7 +46,9 @@ export default function Home() {
 
     if (name === 'reasoning-model') return { component: <ReasoningModelCard />, width: "200px" }
     if (name === 'post-request') return { component: <PostRequestCard />, width: "200px" }
-
+    
+    // Handle baby document variant
+    if (file === 'baby-document') return { component: <DocumentVariants variant="chart" baby={true} />, width: "80px" }
 
     return null
   }
@@ -60,24 +60,6 @@ export default function Home() {
   const propertyColor = "#9CDCFE" // Light blue - chat, completions, model, messages, role, content
   const stringColor = "#CE9178" // Orange/green - 'model', 'user', template literal backticks
   const punctuationColor = "#808080" // Gray - {}, [], :, ,, .
-  
-  // Reset highlight when SVG selection changes
-  useEffect(() => {
-    setShouldHighlight(false)
-    setHighlightDummyKey(0)
-  }, [selectedSvg])
-
-  const handleHighlightClick = () => {
-    // Only trigger if simple document is selected
-    if (selectedSvg?.includes("pricing-document-simple")) {
-      setShouldHighlight(false) // Reset first
-      setHighlightDummyKey(prev => prev + 1) // Increment key to force re-render
-      // Then trigger highlight after a brief delay to ensure re-render happens first
-      setTimeout(() => {
-        setShouldHighlight(true)
-      }, 10)
-    }
-  }
 
   return (
     <main style={{ minHeight: "100vh", background: "white", padding: "32px" }}>
@@ -98,14 +80,6 @@ export default function Home() {
             {file}
             </Button>
           ))}
-       </div>
-
-       {/* Highlight animation button */}
-       <div className="flex flex-row gap-2 mt-2">
-         <Button onClick={handleHighlightClick}>
-           Highlight Dummy
-         </Button>
-        
        </div> 
 
        <div className="flex flex-row gap-4 mt-8 items-center justify-center">
@@ -115,7 +89,7 @@ export default function Home() {
        
        {/* the svg  */}
         <div className={selectedSvg === "reasoning-model.svg" ? "flex flex-col gap-4" : "flex flex-col gap-4 h-[130px]"}>
-          {selectedSvg && (
+          {selectedSvg && selectedSvg !== 'baby-document' && (
             <img 
               src={`/svg/${selectedSvg}`} 
               alt={selectedSvg} 
@@ -145,7 +119,7 @@ export default function Home() {
 
         </div>
         <div className={selectedSvg && (selectedSvg.includes("reasoning") || selectedSvg.includes("post-request")) ? "flex flex-col gap-4" : "flex flex-col gap-4 h-[130px]"}>
-          {selectedSvg && (
+          {selectedSvg && selectedSvg !== 'baby-document' && (
             <>
               <img 
                 src={`/pictures/${selectedSvg.replace('.svg', '.png')}`} 
@@ -247,15 +221,12 @@ export default function Home() {
               {/* if post request then show code */}
               {selectedSvg.includes("post-request") && (
                 <>
-                  <div style={{ width: "200px" }}>
-                    <PostRequestCard showContext={true} />
-                  </div>
-                  <div
+                <div
                     style={{
                       fontFamily: "'Monaco', 'Menlo', 'Consolas', 'Courier New', monospace",
-                      fontSize: "12px",
+                      fontSize: "8px",
                       lineHeight: "1.6",
-                      padding: "16px",
+                      padding: "6px",
                       borderRadius: "8px",
                       backgroundColor: "#ffffff",
                       border: "1px solid #e1e4e8",
@@ -316,6 +287,16 @@ export default function Home() {
                       </code>
                     </pre>
                   </div>
+                <div className="flex flex-row gap-20">
+                  <div style={{ width: "200px" }}>
+                    <PostRequestCard showContext={true} withSID={true} />
+                  </div>
+                  <div style={{ width: "200px" }}>
+                    <PostRequestCard showContext={true} withSID={false} documents={["chart", "bullets", "simple", "table", "image"]} />
+                  </div>
+                  </div>
+                  
+                  
                 </>
               )}
 

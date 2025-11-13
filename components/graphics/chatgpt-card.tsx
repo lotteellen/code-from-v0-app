@@ -37,14 +37,14 @@ export const userMessage = ({
           >
             <div className="styling-text" style={{ whiteSpace: "normal", lineHeight: "1.3", position: "relative" }}>
               <div style={{ position: "relative", display: "block" }}>
-                <span className={highlightLine1 ? "text-highlight-active" : ""} style={{ position: "relative", display: "inline-block" }}>
+                <span className={highlightLine1 ? "text-focus-active" : ""} style={{ position: "relative", display: "inline-block" }}>
                   <span style={{ position: "relative", zIndex: 1 }}>
                     {firstLine}
                   </span>
                 </span>
               </div>
               <div style={{ position: "relative", display: "block" }}>
-                <span className={highlightLine2 ? "text-highlight-active" : ""} style={{ position: "relative", display: "inline-block" }}>
+                <span className={highlightLine2 ? "text-focus-active" : ""} style={{ position: "relative", display: "inline-block" }}>
                   <span style={{ position: "relative", zIndex: 1 }}>
                     {secondLine}
                   </span>
@@ -71,6 +71,7 @@ export function ChatGPTCard({
   const [isUserAnimating, setIsUserAnimating] = useState(false)
   const [isAssistantAnimating, setIsAssistantAnimating] = useState(false)
   const [userMessageAnimate, setUserMessageAnimate] = useState(false)
+  const [showUserMessage, setShowUserMessage] = useState(false)
   const [revealLine1, setRevealLine1] = useState(false)
   const [revealLine2, setRevealLine2] = useState(false)
   const [revealAnswer, setRevealAnswer] = useState(false)
@@ -116,11 +117,13 @@ export function ChatGPTCard({
       // Reset animation
       setIsUserAnimating(false)
       setUserMessageAnimate(false)
+      setShowUserMessage(false)
       return
     }
 
     setIsUserAnimating(true)
     setUserMessageAnimate(false)
+    setShowUserMessage(true)
     
     // Animate user message fade in from below
     setUserMessageAnimate(true)
@@ -186,6 +189,7 @@ export function ChatGPTCard({
     setIsUserAnimating(false)
     setIsAssistantAnimating(false)
     setUserMessageAnimate(false)
+    setShowUserMessage(false) // Hide user message
     setRevealLine1(false)
     setRevealLine2(false)
     setRevealAnswer(false)
@@ -199,11 +203,13 @@ export function ChatGPTCard({
   const content = (
     <div className="h-full justify-between">
     <div className="h-fit flex flex-col gap-[var(--padding)]">
-      {userMessage({
-        highlightLine1: highlightLine1,
-        highlightLine2: highlightLine2,
-        animate: userMessageAnimate,
-      })}
+      <div style={{ display: showUserMessage ? undefined : 'none' }}>
+        {userMessage({
+          highlightLine1: highlightLine1,
+          highlightLine2: highlightLine2,
+          animate: userMessageAnimate,
+        })}
+      </div>
       <div className="w-full px-10">
         <DummyParagraph items={[
           <DummyLine 
