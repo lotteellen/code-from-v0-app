@@ -156,6 +156,76 @@
   }
 }
 
+@keyframes databasePulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.85;
+  }
+}
+
+@keyframes databasePulseWhite {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+    filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.05)) drop-shadow(0 1px 2px rgba(0, 0, 0, 0.03));
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.9;
+    filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.05)) drop-shadow(0 1px 2px rgba(0, 0, 0, 0.03)) drop-shadow(0 0 12px rgba(209, 213, 219, 0.8)) drop-shadow(0 0 20px rgba(209, 213, 219, 0.4));
+  }
+}
+
+.database-pulse-white {
+  animation: databasePulseWhite 1s ease-in-out infinite;
+}
+
+@keyframes textShimmer {
+  0% {
+    left: -35%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
+.database-pulse {
+  animation: databasePulse 1s ease-in-out infinite;
+}
+
+.database-pulse-white {
+  animation: databasePulseWhite 1s ease-in-out infinite;
+}
+
+.text-pulse {
+  position: relative;
+  overflow: hidden;
+}
+
+.text-pulse::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -35%;
+  width: 35%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.6) 30%,
+    rgba(255, 255, 255, 0.7) 50%,
+    rgba(255, 255, 255, 0.6) 70%,
+    transparent 100%
+  );
+  animation: textShimmer 1.2s ease-out infinite;
+  pointer-events: none;
+  z-index: 2;
+}
+
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -199,4 +269,115 @@
   background: var(--bright-yellow);
   animation: highlightLeftToRight 0.8s ease-out forwards;
   pointer-events: none;
+}
+
+/* Text highlight - behind text, see-through, no rounded corners */
+.text-highlight-active {
+  position: relative;
+  overflow: visible;
+  z-index: 0;
+}
+
+.text-highlight-active::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgb(177, 209, 250);
+  z-index: -1;
+  border-radius: 0;
+  pointer-events: none;
+}
+
+/* Word highlight - left to right animation */
+.word-highlight-active {
+  position: relative;
+  overflow: hidden;
+  padding: 0px 1px;
+  display: inline-block;
+}
+
+.word-highlight-active::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: var(--bright-yellow);
+  animation: highlightLeftToRight 0.8s ease-out forwards;
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* User message fade-in from below */
+@keyframes userMessageFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.user-message-animate {
+  animation: userMessageFadeIn 0.5s ease-out forwards;
+}
+
+/* Assistant message left-to-right reveal */
+@keyframes revealLeftToRight {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0% 0 0);
+  }
+}
+
+.assistant-line-reveal {
+  position: relative;
+  overflow: hidden;
+  animation: revealLeftToRight 0.6s ease-out forwards;
+}
+
+/* Highlight animation for post request - left to right reveal */
+@keyframes highlightReveal {
+  from {
+    width: 0%;
+  }
+  to {
+    width: 100%;
+  }
+}
+
+.highlight-animate {
+  position: relative;
+}
+
+.highlight-animate::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: inherit;
+  animation: highlightReveal 0.6s ease-out forwards;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.highlight-context::before {
+  background: rgba(40, 200, 64, 0.3);
+}
+
+.highlight-message::before {
+  background: var(--light-blue);
+}
+
+.highlight-animate-delay::before {
+  animation-delay: 0.3s;
 }

@@ -1,6 +1,10 @@
+"use client"
+
+import { useState } from "react"
+import { Button } from "@/components/ui/button"
 import "../graphics/helpers/globals.css"
 
-const SearchIcon = () => (
+const SearchIcon = ({ isSearching }: { isSearching?: boolean }) => (
   <svg 
   viewBox="2 2 21 21" 
   fill="none" 
@@ -8,14 +12,14 @@ const SearchIcon = () => (
     strokeWidth="2" 
     strokeLinecap="round" 
     strokeLinejoin="round"
-    className="w-[6px] h-[6px] text-[var(--dark-grey)] flex-shrink-0 mb-[0.5px] ml-[1px]"
+    className={`w-[6px] h-[6px] text-[var(--dark-grey)] flex-shrink-0 mb-[0.5px] ml-[1px] transition-opacity ${isSearching ? 'opacity-40' : 'opacity-100'}`}
   >
     <circle cx="11" cy="11" r="7" />
     <path d="m16 16 6 6" strokeWidth="2.5" />
   </svg>
 );
 
-const ChevronRightIcon = () => (
+const ChevronRightIcon = ({ isSearching }: { isSearching?: boolean }) => (
   <svg 
     viewBox="8 5 8 14" 
     fill="none" 
@@ -23,20 +27,26 @@ const ChevronRightIcon = () => (
     strokeWidth="2" 
     strokeLinecap="round" 
     strokeLinejoin="round"
-    className="h-[4px] w-auto text-[var(--dark-grey)] flex-shrink-0"
+    className={`h-[4px] w-auto text-[var(--dark-grey)] flex-shrink-0 transition-opacity ${isSearching ? 'opacity-40' : 'opacity-100'}`}
   >
     <path d="m9 18 6-6-6-6" />
   </svg>
 );
 
-const VectorDB = ({ fill, stroke }: { fill: string; stroke: string }) => (
+const VectorDB = ({ fill, stroke, isSearching }: { fill: string; stroke: string; isSearching?: boolean }) => {
+  const isWhite = fill === "var(--white)" || fill === "white";
+  const pulseClass = isSearching 
+    ? (isWhite ? 'database-pulse-white' : 'database-pulse')
+    : '';
+  
+  return (
   <svg 
     width="252" 
     height="277" 
     viewBox="0 0 252 277" 
     fill="none" 
     xmlns="http://www.w3.org/2000/svg"
-    className="absolute top-0 inset-x-0 mx-auto w-[60%] h-[90px] z-0"
+      className={`absolute top-0 inset-x-0 mx-auto w-[60%] h-[90px] z-0 ${pulseClass}`}
     style={{ filter: "var(--shadow)" }}
   >
     <path d="M126 71C56.9644 71 1 95.6243 1 126V196C1 165.624 56.9644 141 126 141C195.036 141 251 165.624 251 196V126C251 95.6243 195.036 71 126 71Z" fill={fill} stroke={stroke} strokeWidth="2"/>
@@ -46,8 +56,9 @@ const VectorDB = ({ fill, stroke }: { fill: string; stroke: string }) => (
     <path d="M1 258V188M1 258C1 288.376 56.9644 269 126 269C195.036 269 251 288.376 251 258M1 258C1 227.624 56.9644 203 126 203C195.036 203 251 227.624 251 258M1 258V196M251 126V56C251 25.6243 195.036 1 126 1C56.9644 1 1 25.6243 1 56V126M251 126C251 95.6243 195.036 71 126 71C56.9644 71 1 95.6243 1 126M251 126V196M1 126V196M251 196C251 165.624 195.036 141 126 141C56.9644 141 1 165.624 1 196M251 196V258M251 258V188" stroke={stroke} strokeWidth="2"/>
   </svg>
 );
+};
 
-const VectorDB_3D = () => {
+const VectorDB_3D = ({ isSearching }: { isSearching?: boolean }) => {
   // Database cylinder opacity values (bottom to top)
   const DB_OPACITIES = [1, 0.7, 0.45, 0.30, 0.10];
   const DB_BASE_COLOR = "var(--medium-grey)";
@@ -60,7 +71,7 @@ const VectorDB_3D = () => {
       fill="none" 
       xmlns="http://www.w3.org/2000/svg"
       preserveAspectRatio="none"
-      className="absolute top-0 inset-x-0 mx-auto w-[38%] h-[100%] z-0"
+      className={`absolute top-0 inset-x-0 mx-auto w-[38%] h-[100%] z-0 ${isSearching ? 'database-pulse' : ''}`}
       style={{ filter: "var(--shadow)" }}
     >
       <path d="M275 265C275 295.376 213.439 320 137.5 320C61.5608 320 0 295.376 0 265V335C0 365.376 61.5608 390 137.5 390C213.439 390 275 365.376 275 335V265Z" fill={DB_BASE_COLOR} fillOpacity={DB_OPACITIES[0]} stroke="none"/>
@@ -72,7 +83,51 @@ const VectorDB_3D = () => {
   );
 };
 
-export function DatabaseSearchCard({ darkMode = false, filled = false, middle = false }: { darkMode?: boolean, filled?: boolean, middle?: boolean }) {
+export function DatabaseSearchCard({ 
+  darkMode = false, 
+  filled = false, 
+  middle = false,
+  message = "What was our enterprise pricing before we pivoted to SMB?"
+}: { 
+  darkMode?: boolean; 
+  filled?: boolean; 
+  middle?: boolean;
+  message?: string;
+}) {
+  const [displayedText, setDisplayedText] = useState("")
+  const [highlighted, setHighlighted] = useState(true)
+  const [highlightWords, setHighlightWords] = useState(false)
+  const [highlightKey, setHighlightKey] = useState(0)
+  const [isSearching, setIsSearching] = useState(false)
+
+  const handleAddText = () => {
+    setDisplayedText(message)
+  }
+
+  const handleHighlight = () => {
+    setHighlighted(false)
+  }
+
+  const handleHighlightWords = () => {
+    if (!highlightWords) {
+      // Starting highlight - reset key to restart animation
+      setHighlightKey(prev => prev + 1)
+      setHighlightWords(true)
+    } else {
+      setHighlightWords(false)
+    }
+  }
+
+  const handleSearch = () => {
+    if (!displayedText) return
+    
+    setIsSearching(true)
+    // Simulate search duration - you can adjust this
+    setTimeout(() => {
+      setIsSearching(false)
+    }, 2000)
+  }
+
   // Normal mode: dark grey fill with white stroke
   // Dark mode: dark grey fill with light grey stroke
   let fill = "var(--white)"
@@ -85,9 +140,9 @@ export function DatabaseSearchCard({ darkMode = false, filled = false, middle = 
   let vectorDB = null;
 
   if (filled) {
-    vectorDB = <VectorDB_3D/>
+    vectorDB = <VectorDB_3D isSearching={isSearching}/>
   } else {
-    vectorDB = <VectorDB fill={fill} stroke={stroke} />
+    vectorDB = <VectorDB fill={fill} stroke={stroke} isSearching={isSearching} />
   }
 
   
@@ -95,7 +150,7 @@ export function DatabaseSearchCard({ darkMode = false, filled = false, middle = 
     ? "h-[90px] flex items-center justify-center relative"
     : "h-fit pt-[74px] pb-0 flex items-center justify-center relative"
   
-  return (
+  const searchBarContent = (
     <div className={containerClass}>
       {vectorDB}
       <div className={`${middle ? 'absolute inset-0' : 'relative'} z-10 flex items-center justify-center`}>
@@ -111,16 +166,60 @@ export function DatabaseSearchCard({ darkMode = false, filled = false, middle = 
             />
           )}
           <div className={`bg-[var(--white)] rounded-[var(--border-radius-small)] p-[6px] gap-[6px] flex items-center relative z-10 ${middle ? 'mt-1' : ''}`} style={{ 
-            filter: "var(--shadow)"
+            filter: "var(--shadow)",
+            width: "196px",
+            minWidth: "196px"
           }}>
-            <SearchIcon />
-            <span className="styling-text overflow-hidden whitespace-nowrap text-ellipsis flex-1 line-height-1">
-              What was our enterprise pricing before we pivoted to SMB?
+            <SearchIcon isSearching={isSearching} />
+            <span className={`styling-text overflow-hidden whitespace-nowrap text-ellipsis flex-1 line-height-1 ${highlighted ? "text-highlight-active" : ""} ${isSearching ? "text-pulse" : ""}`} style={{ position: "relative", display: "inline-block" }}>
+              {highlightWords && displayedText ? (
+                <span style={{ position: "relative", zIndex: 1 }}>
+                  {displayedText.split(/(enterprise|pricing)/i).map((part, index) => {
+                    const isHighlight = /^(enterprise|pricing)$/i.test(part)
+                    return isHighlight ? (
+                      <span
+                        key={`${highlightKey}-${index}`}
+                        className="word-highlight-active"
+                        style={{
+                          position: "relative",
+                          zIndex: 1
+                        }}
+                      >
+                        {part}
+                      </span>
+                    ) : (
+                      <span key={`${highlightKey}-${index}`}>{part}</span>
+                    )
+                  })}
+                </span>
+              ) : (
+                <span style={{ position: "relative", zIndex: 1 }}>{displayedText}</span>
+              )}
             </span>
-            <ChevronRightIcon />
+            <ChevronRightIcon isSearching={isSearching} />
           </div>
         </div>
       </div>
+    </div>
+  );
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-row gap-2">
+        <Button onClick={handleAddText} size="sm">
+          Add Text
+        </Button>
+        <Button onClick={handleHighlight} size="sm">
+          Remove Highlight
+        </Button>
+        <Button onClick={handleHighlightWords} size="sm" disabled={!displayedText}>
+          Highlight
+        </Button>
+        <Button onClick={handleSearch} size="sm" disabled={!displayedText || isSearching}>
+          Search
+        </Button>
+      </div>
+      {searchBarContent}
     </div>
   );
 }

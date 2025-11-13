@@ -10,6 +10,7 @@ interface DummyLineProps {
   flex?: number | string
   style?: React.CSSProperties
   highlight?: boolean
+  className?: string
 }
 
 export function DummyLine({
@@ -21,10 +22,11 @@ export function DummyLine({
   flex,
   style,
   highlight = false,
+  className = "",
 }: DummyLineProps) {
   return (
     <div
-      className={highlight ? "dummy-highlight-active" : ""}
+      className={`${highlight ? "dummy-highlight-active" : ""} ${className}`}
       style={{
         height,
         width,

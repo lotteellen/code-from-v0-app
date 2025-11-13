@@ -1,9 +1,13 @@
+"use client"
+
 import { IBM_Plex_Mono } from 'next/font/google'
+import { useState } from 'react'
 import { BrowserWindow } from "./helpers/browser-window"
 import { DummyLine } from "./helpers/dummy-helpers"
 import { answerSection } from './reasoning-model-card'
 import { userMessage } from './chatgpt-card'
 import { Document } from './helpers/document'
+import { Button } from '@/components/ui/button'
 import "./helpers/globals.css"
 
 const dummyHeight = "var(--line-height-big)"
@@ -66,7 +70,7 @@ const createOriginalContent = () => (
   </div>
 )
 
-const createHighlightedContent = () => (
+const createHighlightedContent = (animateContext: boolean, animateMessage: boolean) => (
   <div className={`${ibmPlexMono.className} pt-[var(--padding)] h-full text-[7px] font-normal`}>
     <div className="flex flex-col">
       <div className="flex items-center gap-[var(--gap-small)]">
@@ -96,25 +100,31 @@ const createHighlightedContent = () => (
             <span style={{ color: "var(--medium-dark-grey)" }}>:</span>
             <span style={{ color: "var(--dark-grey)" }}>{'`'}</span>
             <span style={{ color: "var(--dark-grey)" }}>{'${'}</span>
-            <span style={{ 
-              background: "rgba(40, 200, 64, 0.3)", 
+            <span className={animateContext ? "highlight-animate highlight-context" : ""} style={{ 
+              background: "transparent", 
               color: "var(--dark-grey)",
               padding: "0px 2px",
-              borderRadius: "2px",
               lineHeight: height,
-              display: "inline-block"
-            }}>context</span>
+              display: "inline-block",
+              position: "relative",
+              overflow: "hidden"
+            }}>
+              <span style={{ position: "relative", zIndex: 1 }}>context</span>
+            </span>
             <span style={{ color: "var(--dark-grey)" }}>{'}'}</span>
             <span style={{ color: "var(--dark-grey)" }}>{'\\n\\n'}</span>
             <span style={{ color: "var(--dark-grey)" }}>{'${'}</span>
-            <span style={{ 
-              background: "var(--light-blue)", 
+            <span className={animateMessage ? "highlight-animate highlight-message" : ""} style={{ 
+              background: "transparent", 
               color: "var(--dark-grey)",
               padding: "0px 2px",
-              borderRadius: "2px",
               lineHeight: height,
-              display: "inline-block"
-            }}>message</span>
+              display: "inline-block",
+              position: "relative",
+              overflow: "hidden"
+            }}>
+              <span style={{ position: "relative", zIndex: 1 }}>message</span>
+            </span>
             <span style={{ color: "var(--dark-grey)" }}>{'}'}</span>
             <span style={{ color: "var(--dark-grey)" }}>{'`'}</span>
             </div>
@@ -130,17 +140,74 @@ const createHighlightedContent = () => (
 )
 
 export function PostRequestCard({ showContext = false }: { showContext?: boolean }) {
+  const [animateContext, setAnimateContext] = useState(false)
+  const [animateMessage, setAnimateMessage] = useState(false)
+  const [resetKey, setResetKey] = useState(0)
 
-  
-  const content = showContext ? createHighlightedContent() : createOriginalContent()
+  const handleAnimateContext = () => {
+    setAnimateContext(false)
+    // Trigger reflow to restart animation
+    setTimeout(() => {
+      setAnimateContext(true)
+    }, 10)
+  }
+
+  const handleAnimateMessage = () => {
+    setAnimateMessage(false)
+    // Trigger reflow to restart animation
+    setTimeout(() => {
+      setAnimateMessage(true)
+    }, 10)
+  }
+
+  const handleReset = () => {
+    setAnimateContext(false)
+    setAnimateMessage(false) // This hides the user message (opacity: 0 when false)
+    setResetKey(prev => prev + 1) // Force remount to clear animation state
+  }
+
+  const content = showContext ? createHighlightedContent(animateContext, animateMessage) : createOriginalContent()
 
   return (
     <div style={{ position: "relative" }}>
+      {showContext && (
+        <div style={{ marginBottom: "8px", display: "flex", justifyContent: "center", gap: "8px" }}>
+          <Button onClick={handleAnimateContext} size="sm" variant="outline">
+            Animate Context
+          </Button>
+          <Button onClick={handleAnimateMessage} size="sm" variant="outline">
+            Animate Message
+          </Button>
+          <Button onClick={handleReset} size="sm" variant="outline">
+            Reset
+          </Button>
+        </div>
+      )}
       <BrowserWindow title="Post Request" content={content} fitContent={true} />
       {showContext && (
         <div style={{ position: "absolute", bottom: 0, right: 0, transform: "translateX(15%) translateY(30%)", display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "8px" }}>
-          {userMessage(undefined, {position: "absolute", zIndex: 1000, transform: "translateX(8%) translateY(65%)" })}
-          <Document content={answerSection(false)} aspectRatio="" verticalPadding={false} />
+          {animateMessage && (
+            <div 
+              key={resetKey}
+              className="user-message-animate" 
+              style={{
+                position: "absolute", 
+                zIndex: 1000, 
+                transform: "translateX(20%) translateY(80%)"
+              }}
+            >
+              {userMessage({ animate: true })}
+            </div>
+          )}
+          <div 
+            className={animateContext ? "user-message-animate" : ""}
+            style={{
+              opacity: animateContext ? undefined : 0,
+              pointerEvents: animateContext ? undefined : "none"
+            }}
+          >
+            <Document content={answerSection(false)} aspectRatio="" verticalPadding={false} />
+          </div>
         </div>
       )}
     </div>
