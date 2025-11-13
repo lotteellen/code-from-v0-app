@@ -3,9 +3,10 @@ import "./globals.css"
 
 // overwrite vertial padding to padding
 
-export function BrowserWindow({ title, content, menu = true }: { title?: string; content?: React.ReactNode; menu?: boolean }) {
+export function BrowserWindow({ title, content, menu = true, fitContent = false}: { title?: string; content?: React.ReactNode; menu?: boolean; fitContent?: boolean }) {
+  const heightClass = fitContent ? "h-fit" : "h-[150px]"
   return (
-    <div className="document-outer h-[150px]">
+    <div className={`document-outer ${heightClass}`}>
         <div className="styling-outer document">
           <div className="h-full overflow-hidden flex flex-col">
           
@@ -13,9 +14,9 @@ export function BrowserWindow({ title, content, menu = true }: { title?: string;
             {menu && (
               <div className="absolute top-0 left-0">
             <div className="h-[7px] flex flex-row gap-0.5 items-center justify-start">
-              <div className="w-[var(--traffic-light-size)] h-[var(--traffic-light-size)] rounded-full bg-[#FF5F57]" />
-              <div className="w-[var(--traffic-light-size)] h-[var(--traffic-light-size)] rounded-full bg-[#FEBC2E]" />
-              <div className="w-[var(--traffic-light-size)] h-[var(--traffic-light-size)] rounded-full bg-[#28C840]" />
+              <div className="w-[var(--traffic-light-size)] h-[var(--traffic-light-size)] rounded-full bg-[var(--traffic-light-red)]" />
+              <div className="w-[var(--traffic-light-size)] h-[var(--traffic-light-size)] rounded-full bg-[var(--traffic-light-yellow)]" />
+              <div className="w-[var(--traffic-light-size)] h-[var(--traffic-light-size)] rounded-full bg-[var(--traffic-light-green)]" />
             </div>
             </div>
             )}
@@ -25,7 +26,7 @@ export function BrowserWindow({ title, content, menu = true }: { title?: string;
 
             {content && (
               <div 
-                className="document-content flex flex-col grow overflow-hidden"
+                className="document-content flex flex-col grow overflow-hidden]"
                 style={{ minHeight: 0 }}
               >
                 {content}

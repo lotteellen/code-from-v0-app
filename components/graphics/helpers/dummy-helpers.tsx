@@ -9,19 +9,22 @@ interface DummyLineProps {
   marginBottom?: string | number
   flex?: number | string
   style?: React.CSSProperties
+  highlight?: boolean
 }
 
 export function DummyLine({
   width = "100%",
   height = "4px",
   borderRadius = "999px",
-  background = "var(--very-light-grey)",
+  background = "var(--light-grey)",
   marginBottom,
   flex,
   style,
+  highlight = false,
 }: DummyLineProps) {
   return (
     <div
+      className={highlight ? "dummy-highlight-active" : ""}
       style={{
         height,
         width,
@@ -40,6 +43,7 @@ interface DummyParagraphProps {
   direction?: "row" | "column"
   gap?: string | number
   alignItems?: React.CSSProperties["alignItems"]
+  justifyContent?: React.CSSProperties["justifyContent"]
   style?: React.CSSProperties
 }
 
@@ -48,6 +52,7 @@ export function DummyParagraph({
   direction = "column",
   gap = "4px",
   alignItems,
+  justifyContent,
   style,
 }: DummyParagraphProps) {
   return (
@@ -57,6 +62,7 @@ export function DummyParagraph({
         flexDirection: direction,
         gap,
         ...(alignItems !== undefined && { alignItems }),
+        ...(justifyContent !== undefined && { justifyContent }),
         ...style,
       }}
     >

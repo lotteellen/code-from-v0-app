@@ -1,12 +1,12 @@
 import { MailIcon } from "lucide-react"
-import { Document } from "../graphics/helpers/document"
-import { DummyLine, DummyParagraph } from "../graphics/helpers/dummy-helpers"
+import { Document } from "./helpers/document"
+import { DummyLine, DummyParagraph } from "./helpers/dummy-helpers"
 import "../graphics/helpers/globals.css"
 
 export function EmailCard() {
   const emailContent = (
     <div className="flex flex-col !h-fit">
-      <div className="flex flex-row items-center gap-[var(--gap-small)] border-b-[0.5px] border-[var(--dummy-background)] pb-[var(--padding)]">
+      <div className="flex flex-row items-center gap-[var(--gap-small)] border-b-[0.5px] border-[var(--light-grey)] pb-[var(--padding)]">
         <MailIcon className="h-3 w-fit text-[var(--dark-grey)]"  />
         <DummyParagraph
           items={[

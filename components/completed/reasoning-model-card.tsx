@@ -1,9 +1,10 @@
 "use client"
 
 import React, { useState, useEffect, useRef } from "react"
-import { BrowserWindow } from "./helpers/browser-window"
-import { DummyLine, DummyParagraph } from "./helpers/dummy-helpers"
-import { Section, type LineIconType, Search, Document, Answer, Checkbox, Spinner, Plus } from "./helpers/reasoning-components"
+import { BrowserWindow } from "../graphics/helpers/browser-window"
+import { DummyLine, DummyParagraph } from "../graphics/helpers/dummy-helpers"
+import { Section, type LineIconType } from "../graphics/helpers/reasoning-components"
+import { Search, Document, Answer, Checkbox, Spinner, Plus } from "../graphics/helpers/reasoning-icons"
 import "../graphics/helpers/globals.css"
 
 const STEP_DATA = {
@@ -41,28 +42,6 @@ const STEP_DATA = {
   ],
   final_answer: "$99/month/seat + $500 setup"
 }
-
-
-
-export const answerSection = (borderTop: boolean, title?: string) => (
-  <Section title={title} borderTop={borderTop}>
-                <DummyParagraph
-                  items={[
-                  <DummyLine width="91%" height="var(--line-height-big)" />,
-                  <div className="flex flex-row items-center gap-[var(--gap-big)]"> 
-                    <DummyLine width="24px" height="var(--line-height-big)" />
-                      <span className="styling-text font-bold" style={{ color: "var(--traffic-light-green)" }}>
-                        {STEP_DATA.final_answer}
-                      </span>
-                    <DummyLine width="34px" height="var(--line-height-big)" />
-                   </div>,
-                  <DummyLine width="100%" height="var(--line-height-big)" />,
-
-                  ]}
-                  gap="var(--gap-big)"
-                />
-</Section>
-) 
 
 type StepState = "pending" | "active" | "updating" | "retrieving" | "documents_found" | "answering" | "completed"
 type Phase = "active" | "updating" | "retrieving" | "documents_found" | "answering" | "completed"
@@ -362,14 +341,14 @@ export function ReasoningModelCard() {
         content={
           <>
             <Section title="Thinking" borderTop={false}>
-              <DummyParagraph
-                items={[
-                  <DummyLine width="100%" height="var(--line-height-big)" />, 
-                  <DummyLine width="87%" height="var(--line-height-big)" />,
-                  <DummyLine width="95%" height="var(--line-height-big)" />,
-                ]}
-                gap="var(--gap-big)"
-              />
+                <DummyParagraph
+                  items={[
+                    <DummyLine width="100%" height="var(--line-height-big)" />, 
+                    <DummyLine width="87%" height="var(--line-height-big)" />,
+                    <DummyLine width="95%" height="var(--line-height-big)" />,
+                  ]}
+                  gap="var(--gap-big)"
+                />
             </Section>
             {showPlanning && (
               <Section title="Plan">
@@ -393,7 +372,23 @@ export function ReasoningModelCard() {
                   ))}
               </Section>
             )}
-            {showAnswer && allStepsCompleted && answerSection(true, "Answer")}
+            {showAnswer && allStepsCompleted && (
+              <Section title="Answer">
+                <DummyParagraph
+                  items={[
+                  <DummyLine width="100%" height="var(--line-height-big)" />,
+                  <div className="flex flex-row items-center gap-[var(--gap-big)]"> 
+                    <DummyLine width="30px" height="var(--line-height-big)" />
+                      <span className="styling-text font-bold" style={{ color: "var(--traffic-light-green)" }}>
+                        {STEP_DATA.final_answer}
+                      </span>
+                    <DummyLine width="40px" height="var(--line-height-big)" />
+                    </div>,
+                  ]}
+                  gap="var(--gap-big)"
+                />
+              </Section>
+            )}
           </>
         }
       />

@@ -1,38 +1,75 @@
 :root {
-  --padding: 8px;
-  --padding-vertical: 12px;
 
-  --background-white: white;
+  --white: white;
+  --very-light-grey: #F9FAFB;
+  --light-grey: #F3F4F6;
+  --medium-light-grey: #E5E7EB;
+  --medium-grey: #D1D5DB;
+  --medium-dark-grey: #B0B5C0;
   --dark-grey: #787F8C;
-  --very-light-grey: #F3F4F6;
-  --light-grey: #E5E7EB;
+
   --light-blue: #E3F2FD;
 
+  --traffic-light-red: #FF5F57;
+  --traffic-light-yellow: #FEBC2E;
+  --traffic-light-green: #28C840;
+
+  --spreadsheet-green-light: #BBF7D0;
+  --spreadsheet-green-medium: #86EFAC;
+
+  --bright-yellow: #FFFC00;
+
+  --chart-color-1: #60A5FA;
+  --chart-color-2: #34D399;
+  --chart-color-3: #F472B6;
+  --chart-color-4: #A78BFA;
+  --chart-color-5: #22D3EE;
+  --chart-color-6: #EC4899;
+
+  --shadow: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.05)) drop-shadow(0 1px 2px rgba(0, 0, 0, 0.03));
+  
+  --padding: 8px;
+  --padding-vertical: 12px;
 
   --border-radius: 6px;
   --border-radius-small: 3px;
   --image-radius: 1px;
 
-
-  --shadow: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.05)) drop-shadow(0 1px 2px rgba(0, 0, 0, 0.03));
- 
-  --fold-size: 20px;
-  --traffic-light-size: 4px;
-  
   --line-height: 3px;
   --line-height-small: 2.5px;
+  --line-height-big: 5.5px;
   --gap: 5px;
   --gap-small: 3px;
+  --gap-big: 6px;
 
   --circle-size: 4px;
-  --circle-background: #D1D5DB;
-  --chart-background: #F9FAFB;
-  --dummy-background: #F3F4F6;
+
+  --fold-size: 20px;
+  --traffic-light-size: 4px;
+
+  /* Syntax highlighting colors - optimized for readability from distance */
+  --syntax-keyword: #8B5CF6; /* Vibrant purple */
+  --syntax-variable: #1F2937; /* Dark grey with better contrast */
+  --syntax-property: #06B6D4; /* Bright cyan */
+  --syntax-string: #F97316; /* Vibrant orange */
+  --syntax-punctuation: #4B5563; /* Medium-dark grey for readability */
+}
+
+@keyframes spinner {
+  from {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(0.5);
+  }
+  to {
+    transform: scale(1);
+  }
 }
 
 .styling-outer {
   height: 100%;
-  background-color: var(--background-white);
+  background-color: var(--white);
 }
 
 .styling-title {
@@ -40,11 +77,11 @@
   font-size: 7px;
   line-height: 1.0;
   color: var(--dark-grey);
-  padding-bottom: var(--padding-vertical);
 }
 
 .styling-text {
   font-size: 6px;
+  line-height: 1;
   color: var(--dark-grey);
 }
 
@@ -80,7 +117,7 @@
   right: 0;
   width: var(--fold-size);
   height: var(--fold-size);
-  background: var(--very-light-grey);
+  background: var(--light-grey);
   clip-path: polygon(0 0, 100% 0, 100% 100%);
   border-bottom-left-radius: var(--border-radius);
   z-index: 10;
@@ -93,10 +130,73 @@
   right: -1px;
   width: var(--fold-size);
   height: var(--fold-size);
-  border: 1px solid var(--very-light-grey);
-  background: var(--very-light-grey);
+  border: 1px solid var(--light-grey);
+  background: var(--light-grey);
   clip-path: polygon(0 0, 100% 100%, 0 100%);
   border-radius: 0 0 0 var(--border-radius);
   pointer-events: none;
   z-index: 5;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Post request syntax highlighting */
+.syntax-keyword { color: var(--syntax-keyword); }
+.syntax-variable { color: var(--syntax-variable); }
+.syntax-property { color: var(--syntax-property); }
+.syntax-string { color: var(--syntax-string); }
+.syntax-punctuation { color: var(--syntax-punctuation); }
+
+/* Highlight animation for dummy lines */
+@keyframes highlightLeftToRight {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0% 0 0);
+  }
+}
+
+.dummy-highlight-active {
+  position: relative;
+  overflow: hidden;
+}
+
+.dummy-highlight-active::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: var(--bright-yellow);
+  animation: highlightLeftToRight 0.8s ease-out forwards;
+  pointer-events: none;
 }
