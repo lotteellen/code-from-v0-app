@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import "../graphics/helpers/globals.css"
 
@@ -70,8 +70,8 @@ const VectorDB_3D = ({ isSearching }: { isSearching?: boolean }) => {
       viewBox="0 0 275 390" 
       fill="none" 
       xmlns="http://www.w3.org/2000/svg"
-      preserveAspectRatio="none"
-      className={`absolute top-0 inset-x-0 mx-auto w-[38%] h-[100%] z-0 ${isSearching ? 'database-pulse' : ''}`}
+      preserveAspectRatio="xMidYMid meet"
+      className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[38%] h-auto z-0 ${isSearching ? 'database-pulse' : ''}`}
       style={{ filter: "var(--shadow)" }}
     >
       <path d="M275 265C275 295.376 213.439 320 137.5 320C61.5608 320 0 295.376 0 265V335C0 365.376 61.5608 390 137.5 390C213.439 390 275 365.376 275 335V265Z" fill={DB_BASE_COLOR} fillOpacity={DB_OPACITIES[0]} stroke="none"/>
@@ -87,12 +87,26 @@ export function DatabaseSearchCard({
   darkMode = false, 
   filled = false, 
   middle = false,
-  message = "What was our enterprise pricing before we pivoted to SMB?"
+  message = "What was our enterprise pricing before we pivoted to SMB?",
+  width = "200px",
+  onActionButtons,
+  onFunctionsReady,
 }: { 
   darkMode?: boolean; 
   filled?: boolean; 
   middle?: boolean;
   message?: string;
+  width?: string;
+  onActionButtons?: (buttons: React.ReactNode) => void;
+  onFunctionsReady?: (functions: {
+    addText: () => void;
+    removeHighlight: () => void;
+    search: () => void;
+    highlightEnterprise: () => void;
+    highlightPricing: () => void;
+    highlightSMB: () => void;
+    reset: () => void;
+  }) => void;
 }) {
   const [displayedText, setDisplayedText] = useState("")
   const [highlighted, setHighlighted] = useState(true)
@@ -103,16 +117,24 @@ export function DatabaseSearchCard({
   const [pricingKey, setPricingKey] = useState(0)
   const [smbKey, setSmbKey] = useState(0)
   const [isSearching, setIsSearching] = useState(false)
+  const onActionButtonsRef = useRef(onActionButtons)
+  const displayedTextRef = useRef("")
 
-  const handleAddText = () => {
+  // Keep ref in sync with state
+  useEffect(() => {
+    displayedTextRef.current = displayedText
+  }, [displayedText])
+
+  const handleAddText = useCallback(() => {
     setDisplayedText(message)
-  }
+    displayedTextRef.current = message
+  }, [message])
 
-  const handleHighlight = () => {
+  const handleHighlight = useCallback(() => {
     setHighlighted(false)
-  }
+  }, [])
 
-  const handleHighlightEnterprise = () => {
+  const handleHighlightEnterprise = useCallback(() => {
     if (!highlightEnterprise) {
       // Starting highlight - reset key to restart animation
       setEnterpriseKey(prev => prev + 1)
@@ -120,9 +142,9 @@ export function DatabaseSearchCard({
     } else {
       setHighlightEnterprise(false)
     }
-  }
+  }, [highlightEnterprise])
 
-  const handleHighlightPricing = () => {
+  const handleHighlightPricing = useCallback(() => {
     if (!highlightPricing) {
       // Starting highlight - reset key to restart animation
       setPricingKey(prev => prev + 1)
@@ -130,9 +152,9 @@ export function DatabaseSearchCard({
     } else {
       setHighlightPricing(false)
     }
-  }
+  }, [highlightPricing])
 
-  const handleHighlightSMB = () => {
+  const handleHighlightSMB = useCallback(() => {
     if (!highlightSMB) {
       // Starting highlight - reset key to restart animation
       setSmbKey(prev => prev + 1)
@@ -140,20 +162,22 @@ export function DatabaseSearchCard({
     } else {
       setHighlightSMB(false)
     }
-  }
+  }, [highlightSMB])
 
-  const handleSearch = () => {
-    if (!displayedText) return
+  const handleSearch = useCallback(() => {
+    // Use ref to get the latest value instead of closure value
+    if (!displayedTextRef.current) return
     
     setIsSearching(true)
     // Simulate search duration - you can adjust this
     setTimeout(() => {
       setIsSearching(false)
     }, 2000)
-  }
+  }, [])
 
-  const handleReset = () => {
+  const handleReset = useCallback(() => {
     setDisplayedText("")
+    displayedTextRef.current = ""
     setHighlighted(true)
     setHighlightEnterprise(false)
     setHighlightPricing(false)
@@ -162,7 +186,31 @@ export function DatabaseSearchCard({
     setPricingKey(0)
     setSmbKey(0)
     setIsSearching(false)
-  }
+  }, [])
+
+  // Expose functions to parent component
+  useEffect(() => {
+    if (onFunctionsReady) {
+      onFunctionsReady({
+        addText: handleAddText,
+        removeHighlight: handleHighlight,
+        search: handleSearch,
+        highlightEnterprise: () => {
+          setEnterpriseKey(prev => prev + 1)
+          setHighlightEnterprise(true)
+        },
+        highlightPricing: () => {
+          setPricingKey(prev => prev + 1)
+          setHighlightPricing(true)
+        },
+        highlightSMB: () => {
+          setSmbKey(prev => prev + 1)
+          setHighlightSMB(true)
+        },
+        reset: handleReset,
+      })
+    }
+  }, [onFunctionsReady, handleAddText, handleHighlight, handleSearch, handleReset])
 
   // Normal mode: dark grey fill with white stroke
   // Dark mode: dark grey fill with light grey stroke
@@ -184,14 +232,27 @@ export function DatabaseSearchCard({
   
   const containerClass = middle 
     ? "h-[90px] flex items-center justify-center relative"
+    : filled
+    ? `w-full mx-auto flex items-center justify-center relative`
     : "h-fit pt-[74px] pb-0 flex items-center justify-center relative"
   
+  const containerStyle = filled ? {
+    maxWidth: width,
+    aspectRatio: '200 / 108',
+    minHeight: '0'
+  } : {
+    width: width
+  }
+  
   const searchBarContent = (
-    <div className={containerClass}>
+    <div 
+      className={containerClass}
+      style={containerStyle}
+    >
       {vectorDB}
-      <div className={`${middle ? 'absolute inset-0' : 'relative'} z-10 flex items-center justify-center`}>
+      <div className={`${middle || filled ? 'absolute inset-0' : 'relative'} z-10 flex items-center justify-center`}>
         <div className="relative">
-          {!middle && (
+          {!middle && !filled && (
             <div 
               className="absolute inset-0 bg-[var(--white)] rounded-[var(--border-radius-small)]"
               style={{ 
@@ -247,32 +308,41 @@ export function DatabaseSearchCard({
     </div>
   );
 
-  return (
-    <div className="flex flex-col gap-2">
-      <div className="flex flex-row gap-2">
-        <Button onClick={handleAddText} size="sm">
-          Add Text
-        </Button>
-        <Button onClick={handleHighlight} size="sm">
-          Remove Focus
-        </Button>
-        <Button onClick={handleHighlightEnterprise} size="sm" disabled={!displayedText}>
-          Highlight Enterprise
-        </Button>
-        <Button onClick={handleHighlightPricing} size="sm" disabled={!displayedText}>
-          Highlight Pricing
-        </Button>
-        <Button onClick={handleHighlightSMB} size="sm" disabled={!displayedText}>
-          Highlight SMB
-        </Button>
-        <Button onClick={handleSearch} size="sm" disabled={!displayedText || isSearching}>
-          Search
-        </Button>
-        <Button onClick={handleReset} size="sm">
-          Reset
-        </Button>
-      </div>
-      {searchBarContent}
-    </div>
-  );
+  // Keep ref in sync with prop
+  useEffect(() => {
+    onActionButtonsRef.current = onActionButtons
+  }, [onActionButtons])
+
+  useEffect(() => {
+    if (onActionButtonsRef.current) {
+      const buttons = (
+        <div className="flex flex-row gap-2">
+          <Button onClick={handleAddText} size="sm">
+            Add Text
+          </Button>
+          <Button onClick={handleHighlight} size="sm">
+            Remove Focus
+          </Button>
+          <Button onClick={handleHighlightEnterprise} size="sm" disabled={!displayedText}>
+            Highlight Enterprise
+          </Button>
+          <Button onClick={handleHighlightPricing} size="sm" disabled={!displayedText}>
+            Highlight Pricing
+          </Button>
+          <Button onClick={handleHighlightSMB} size="sm" disabled={!displayedText}>
+            Highlight SMB
+          </Button>
+          <Button onClick={handleSearch} size="sm" disabled={!displayedText || isSearching}>
+            Search
+          </Button>
+          <Button onClick={handleReset} size="sm">
+            Reset
+          </Button>
+        </div>
+      )
+      onActionButtonsRef.current(buttons)
+    }
+  }, [displayedText, highlighted, highlightEnterprise, highlightPricing, highlightSMB, isSearching, handleAddText, handleHighlight, handleHighlightEnterprise, handleHighlightPricing, handleHighlightSMB, handleSearch, handleReset])
+
+  return searchBarContent;
 }

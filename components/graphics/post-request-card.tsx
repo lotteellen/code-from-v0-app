@@ -1,10 +1,10 @@
 "use client"
 
 import { IBM_Plex_Mono } from 'next/font/google'
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { BrowserWindow } from "./helpers/browser-window"
 import { DummyLine } from "./helpers/dummy-helpers"
-import { answerSection } from './reasoning-model-card'
+import { AnswerSection } from './reasoning-model-card'
 import { userMessage } from './chatgpt-card'
 import { Document } from './helpers/document'
 import { DocumentVariants } from './document-variants'
@@ -150,8 +150,9 @@ const createHighlightedContent = (animateContext: boolean, animateMessage: boole
                 <span style={{ color: "var(--dark-grey)" }}>{'${'}</span>
                 {animateContext ? (
                   <span key={`documents-${contextResetKey}`} className="highlight-animate highlight-documents highlight-offset" style={{ color: "var(--dark-grey)", position: "relative", lineHeight: 1 }}>
-                    <span style={{ position: "relative", zIndex: 1 }}>documents</span>
-                  </span>
+                    <span style={{ color: "var(--dark-grey)", zIndex: 1 }}>[</span>
+                    <span style={{ color: "var(--dark-grey)", zIndex: 1 }}>documents</span>
+                    <span style={{ color: "var(--dark-grey)", zIndex: 1 }}>]</span>                  </span>
                 ) : (
                   <>
                   <span style={{ color: "var(--dark-grey)" }}>[</span>
@@ -185,87 +186,208 @@ const createHighlightedContent = (animateContext: boolean, animateMessage: boole
   </div>
 )
 
-export function PostRequestCard({ showContext = false, withSID = true, documents = ["simple"] }: { showContext?: boolean; withSID?: boolean; documents?: string[] }) {
+const documentStack = (documents: string[], animateContext: boolean) => {
+  const stackStyle = [
+    { rotate: '0deg', bottom: -56, left: -45 },    // bullets (leftmost, behind) - messy
+    { rotate: '7deg', bottom: -61, left: -20 },     // table (center-left) - tilted right
+    { rotate: '-5deg', bottom: -59, left: 25 },     // image (center) - slightly left tilt
+    { rotate: '11deg', bottom: -65, left: 60 },      // simple (center-right) - more tilted
+    { rotate: '3deg', bottom: -62, left: 90 },      // chart (rightmost, behind) - slight tilt
+    { rotate: '-9deg', bottom: -58, left: -70 },    // additional document - far left
+    { rotate: '13deg', bottom: -64, left: 10 },     // additional document - center-left
+    { rotate: '-7deg', bottom: -60, left: 45 },     // additional document - center-right
+    { rotate: '5deg', bottom: -62, left: 80 },      // additional document - right
+    { rotate: '-10deg', bottom: -63, left: 105 },   // additional document - far right
+  ]
+
+  // Entry directions for each paper - completely random, chaotic pattern from all directions
+  // Some from left, some from right, some from middle, all over the place
+  const entryDirections = [
+    { translateX: '-65px', translateY: '50px' },   // far left
+    { translateX: '45px', translateY: '40px' },     // right side
+    { translateX: '-35px', translateY: '55px' },     // left-middle
+    { translateX: '70px', translateY: '45px' },      // far right
+    { translateX: '5px', translateY: '60px' },      // center (slight right)
+    { translateX: '-80px', translateY: '48px' },     // very far left
+    { translateX: '30px', translateY: '52px' },      // right-middle
+    { translateX: '-50px', translateY: '43px' },     // left
+    { translateX: '55px', translateY: '58px' },      // right
+    { translateX: '-10px', translateY: '47px' },     // left-center
+  ]
+
+  // Completely random delays - no pattern, all over the place
+  // bullets (index 0) should be last
+  const randomDelays = [400, 250, 120, 180, 80, 200, 300, 150, 220, 100] // milliseconds - chaotic timing, bullets last
+
+  const totalDocuments = stackStyle.length
+
+  return (
+    //  All on top of each other in a stack
+    <div className="relative" style={{ width: '250px', height: '100%' }}>
+      {stackStyle.map((style, index) => {
+        const entryDir = entryDirections[index % entryDirections.length]
+        // Completely random delays - no z-index ordering, just chaos
+        const animationDelay = randomDelays[index % randomDelays.length]
+        
+        return (
+          <div 
+            key={index} 
+            className={`absolute w-[80px] ${animateContext ? 'paper-stack-animate' : ''}`}
+            style={{
+              '--paper-rotation': style.rotate,
+              '--entry-x': entryDir.translateX,
+              '--entry-y': entryDir.translateY,
+              transform: animateContext ? `scale(0.8)` : `scale(0.8) rotate(${style.rotate})`,
+              bottom: `${style.bottom}px`,
+              left: `${style.left}px`,
+              zIndex: totalDocuments - index,
+              animationDelay: animateContext ? `${animationDelay}ms` : '0ms',
+              opacity: animateContext ? undefined : 1, // Ensure visible when not animating
+            } as React.CSSProperties}
+          >
+            <DocumentVariants variant={documents[index]} />
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+export function PostRequestCard({ 
+  showContext = false, 
+  withSID = true, 
+  documents = ["bullets", "table", "image", "simple", "chart", "simple", "table", "image", "chart", "bullets"], 
+  onActionButtons,
+  onFunctionsReady
+}: { 
+  showContext?: boolean; 
+  withSID?: boolean; 
+  documents?: string[]; 
+  onActionButtons?: (buttons: React.ReactNode) => void;
+  onFunctionsReady?: (functions: {
+    animate: () => Promise<void>;
+    reset: () => void;
+  }) => void;
+}) {
   const [animateContext, setAnimateContext] = useState(false)
   const [animateMessage, setAnimateMessage] = useState(false)
   const [contextResetKey, setContextResetKey] = useState(0)
   const [messageResetKey, setMessageResetKey] = useState(0)
   const [showUserMessage, setShowUserMessage] = useState(false)
   const userMessageRef = useRef<HTMLDivElement>(null)
+  const onActionButtonsRef = useRef(onActionButtons)
+  const messageTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
-  const handleAnimateContext = () => {
-    // If already active, just restart the animation by changing the key
-    if (animateContext) {
-      setContextResetKey(prev => prev + 1)
-    } else {
-      // First time - start the animation
+  const handleAnimate = useCallback((): Promise<void> => {
+    return new Promise((resolve) => {
+      // Clear any existing timeout
+      if (messageTimeoutRef.current) {
+        clearTimeout(messageTimeoutRef.current)
+        messageTimeoutRef.current = null
+      }
+      
+      // Reset everything first
+      setShowUserMessage(false)
+      setAnimateMessage(false)
+      setAnimateContext(false)
+      
+      // Start context animation
       setAnimateContext(true)
-    }
-  }
+      setContextResetKey(prev => prev + 1)
+      
+      // Calculate when context animation completes:
+      // - Documents: max delay (400ms) + animation duration (300ms) = 700ms
+      // - Highlight animation: 800ms
+      // Wait for the longer one plus a small buffer
+      const contextAnimationDuration = 850 // 800ms highlight + 50ms buffer
+      
+      // After context animation completes, start message animation
+      messageTimeoutRef.current = setTimeout(() => {
+        setAnimateMessage(true)
+        setMessageResetKey(prev => prev + 1)
+        setShowUserMessage(true)
+        messageTimeoutRef.current = null
+        // Resolve after message animation completes (message animation is instant, so resolve immediately)
+        resolve()
+      }, contextAnimationDuration)
+    })
+  }, [])
 
-  const handleAnimateMessage = () => {
-    // If already active, just restart the animation by changing the key
-    if (animateMessage) {
-      setMessageResetKey(prev => prev + 1)
-    } else {
-      // First time - start the animation
-      setAnimateMessage(true)
-      setShowUserMessage(true)
+  const handleReset = useCallback(() => {
+    // Clear any pending timeout
+    if (messageTimeoutRef.current) {
+      clearTimeout(messageTimeoutRef.current)
+      messageTimeoutRef.current = null
     }
-  }
-
-  const handleReset = () => {
-    // Force immediate DOM manipulation to hide element
-    if (userMessageRef.current) {
-      userMessageRef.current.style.display = 'none'
-      userMessageRef.current.style.visibility = 'hidden'
-      userMessageRef.current.style.opacity = '0'
-    }
-    // Then update state
+    // Reset all state
     setShowUserMessage(false)
     setAnimateMessage(false)
     setAnimateContext(false)
     setContextResetKey(prev => prev + 1)
     setMessageResetKey(prev => prev + 1)
-  }
+  }, [])
 
   const content = showContext ? createHighlightedContent(animateContext, animateMessage, contextResetKey, messageResetKey, withSID) : createOriginalContent(withSID)
 
-  return (
-    <div>
-      {showContext && (
-        <div style={{ display: "flex", justifyContent: "center", gap: "8px", marginBottom: "8px" }}>
-          <Button onClick={handleAnimateContext} size="sm" variant="outline">
-            Context
-          </Button>
-          <Button onClick={handleAnimateMessage} size="sm" variant="outline">
-            Message
+  // Keep ref in sync with prop
+  useEffect(() => {
+    onActionButtonsRef.current = onActionButtons
+  }, [onActionButtons])
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (messageTimeoutRef.current) {
+        clearTimeout(messageTimeoutRef.current)
+      }
+    }
+  }, [])
+
+  // Expose functions to parent component
+  useEffect(() => {
+    if (onFunctionsReady) {
+      onFunctionsReady({
+        animate: handleAnimate,
+        reset: handleReset,
+      })
+    }
+  }, [onFunctionsReady, handleAnimate, handleReset])
+
+  useEffect(() => {
+    if (onActionButtonsRef.current && showContext) {
+      const buttons = (
+        <div style={{ display: "flex", justifyContent: "center", gap: "8px" }}>
+          <Button onClick={() => handleAnimate()} size="sm" variant="outline">
+            Animate
           </Button>
           <Button onClick={handleReset} size="sm" variant="outline">
             Reset
           </Button>
         </div>
-      )}
-      <div style={{ position: "relative" }}>
-        <BrowserWindow title="Post Request" content={content} fitContent={true} />
+      )
+      onActionButtonsRef.current(buttons)
+    }
+  }, [animateContext, animateMessage, showContext, handleAnimate, handleReset])
+
+  return (
+    <div style={{ position: "relative" }}>
+      <BrowserWindow title="Post Request" content={content} fitContent={true} />
       {showContext && (
         <div style={{ position: "absolute", bottom: 0, right: 0, transform: "translateX(15%) translateY(30%)", display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "8px" }}>
-          <div 
-            ref={userMessageRef}
-            key={`user-message-${messageResetKey}`}
-            style={{
-              position: "absolute", 
-              zIndex: showUserMessage ? 1000 : -1, 
-              bottom: "-10px",
-              right: "-10px",
-              display: showUserMessage ? undefined : 'none',
-              visibility: showUserMessage ? undefined : 'hidden',
-              opacity: showUserMessage ? undefined : 0,
-              pointerEvents: showUserMessage ? undefined : 'none'
-            }}
-          >
-            {userMessage({ animate: showUserMessage })}
-          </div>
+          {showUserMessage && (
+            <div 
+              ref={userMessageRef}
+              key={`user-message-${messageResetKey}`}
+              style={{
+                position: "absolute", 
+                zIndex: 1000, 
+                bottom: "-10px",
+                right: "-10px"
+              }}
+            >
+              {userMessage({ animate: animateMessage })}
+            </div>
+          )}
           <div style={{ display: "flex", flexDirection: "column", gap: "8px", width: "200px", position: "relative" }}>
             {withSID ? (
               <div 
@@ -278,7 +400,7 @@ export function PostRequestCard({ showContext = false, withSID = true, documents
                   visibility: animateContext ? undefined : 'hidden'
                 }}
               >
-                <Document content={answerSection(false)} aspectRatio="" verticalPadding={false} />
+                <Document content={<AnswerSection borderTop={false} showText={false} />} aspectRatio="" verticalPadding={false} />
               </div>
             ) : (
               <div 
@@ -287,43 +409,22 @@ export function PostRequestCard({ showContext = false, withSID = true, documents
                 style={{
                   opacity: animateContext ? undefined : 0,
                   pointerEvents: animateContext ? undefined : "none",
-                  display: animateContext ? "block" : 'none',
+                  display: animateContext ? "flex" : 'none',
                   visibility: animateContext ? undefined : 'hidden',
-                  position: "relative",
+                  flexDirection: "row",
+                  gap: "8px",
+                  alignItems: "center",
                   width: "100%",
-                  minHeight: `${documents.length * 12 + 40}px`
+                  marginLeft: "60px",
+                  marginTop: "10px"
                 }}
               >
-                {documents.map((variant, index) => {
-                  // All documents at same height, but with rotation and offsets for messy stack
-                  const rotation = (index % 2 === 0 ? 1 : -1) * (index * 0.8 + (index % 4) * 0.3);
-                  // Translation offsets for messy stack effect
-                  const translateX = (index % 2 === 0 ? 1 : -1) * (index * 2 + (index % 3) * 1.5);
-                  const translateY = (index % 3 === 0 ? 1 : -1) * (index * 1.5 + (index % 2) * 0.8);
-                  
-                  return (
-                    <div
-                      key={`doc-${variant}-${index}`}
-                      style={{
-                        position: "absolute",
-                        top: "0px",
-                        left: "0px",
-                        transform: `translate(${translateX}px, ${translateY}px) rotate(${rotation}deg)`,
-                        transformOrigin: "center center",
-                        zIndex: documents.length - index,
-                        width: "100%"
-                      }}
-                    >
-                      <DocumentVariants variant={variant} baby={true} />
-                    </div>
-                  );
-                })}
+                {documentStack(documents, animateContext)}
               </div>
             )}
           </div>
         </div>
       )}
-      </div>
     </div>
   );
-} 
+}

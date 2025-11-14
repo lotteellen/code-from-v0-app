@@ -1,311 +1,351 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useCallback } from "react"
 import { DocumentVariants } from "@/components/graphics/document-variants"
-import { DatabaseSearchCard } from "@/components/graphics/database-search-card"
-import { ChatGPTCard } from "@/components/graphics/chatgpt-card"
 import { SpreadsheetCard } from "@/components/graphics/spreadsheet-card"
 import { EmailCard } from "@/components/graphics/email-card"
-import { ReasoningModelCard } from "@/components/graphics/reasoning-model-card"
+import { ChatGPTCard } from "@/components/graphics/chatgpt-card"
 import { PostRequestCard } from "@/components/graphics/post-request-card"
+import { ReasoningModelCard } from "@/components/graphics/reasoning-model-card"
+import { DatabaseSearchCard } from "@/components/graphics/database-search-card"
+import { RetrievedSearchCard } from "@/components/graphics/retrieved-search-card"
+import { RAGCard } from "@/components/graphics/rag-card"
 import { Button } from "@/components/ui/button"
 
-const completedSVGFiles = [
-  "pricing-document-bullets.svg",
-  "pricing-document-chart.svg",
-  "pricing-document-image.svg",
-  "pricing-document-simple.svg",
-  "pricing-document-table.svg",
-  "sheet-spreadsheet.svg",
-  "subject-email.svg",
-  "chatgpt-interface.svg",
-  "post-request.svg"
-]
-
-const incompleteSVGFiles = [
-  "database-search.svg",
-  "reasoning-model.svg",
-]
+type ViewType = "documents" | "chatgpt" | "database" | "post-request" | "reasoning" | "retrieved-search" | "rag"
 
 export default function Home() {
-  const [selectedSvg, setSelectedSvg] = useState<string | null>(null)
+  const [view, setView] = useState<ViewType>("documents")
+  const [highlightDocuments, setHighlightDocuments] = useState(false)
+  const [actionButtons, setActionButtons] = useState<React.ReactNode>(null)
+  const [versionButtons, setVersionButtons] = useState<Map<string, React.ReactNode>>(new Map())
 
-  const getComponentForSvg = (file: string): { component: React.ReactNode; width: string } | null => {
-    const name = file.replace('.svg', '')
-    
-    if (name === 'sheet-spreadsheet') return { component: <SpreadsheetCard />, width: "103px" }
-    if (name === 'subject-email') return { component: <EmailCard />, width: "80px" }
-    if (name.startsWith('pricing-document-')) {
-      const variant = name.replace('pricing-document-', '')
-      return { component: <DocumentVariants title={variant} variant={variant} />, width: "80px" }
+  // Memoize callbacks to prevent infinite loops
+  const handleChatGPTCorrectButtons = useCallback((buttons: React.ReactNode) => {
+    setVersionButtons(prev => new Map(prev).set("chatgpt-correct", buttons))
+  }, [])
+
+  const handleChatGPTIncorrectButtons = useCallback((buttons: React.ReactNode) => {
+    setVersionButtons(prev => new Map(prev).set("chatgpt-incorrect", buttons))
+  }, [])
+
+  const handlePostRequestWithSIDButtons = useCallback((buttons: React.ReactNode) => {
+    setVersionButtons(prev => new Map(prev).set("post-request-withSID", buttons))
+  }, [])
+
+  const handlePostRequestWithoutSIDButtons = useCallback((buttons: React.ReactNode) => {
+    setVersionButtons(prev => new Map(prev).set("post-request-withoutSID", buttons))
+  }, [])
+
+  const handlePostRequestNoContextButtons = useCallback((buttons: React.ReactNode) => {
+    setVersionButtons(prev => new Map(prev).set("post-request-noContext", buttons))
+  }, [])
+
+  const handleDatabaseDefaultButtons = useCallback((buttons: React.ReactNode) => {
+    setVersionButtons(prev => new Map(prev).set("database-default", buttons))
+  }, [])
+
+  const handleDatabaseDarkModeButtons = useCallback((buttons: React.ReactNode) => {
+    setVersionButtons(prev => new Map(prev).set("database-darkMode", buttons))
+  }, [])
+
+  const handleDatabaseFilledButtons = useCallback((buttons: React.ReactNode) => {
+    setVersionButtons(prev => new Map(prev).set("database-filled", buttons))
+  }, [])
+
+  const handleRetrievedSearchButtons = useCallback((buttons: React.ReactNode) => {
+    setVersionButtons(prev => new Map(prev).set("retrieved-search", buttons))
+  }, [])
+
+  const renderContent = () => {
+    switch (view) {
+      case "chatgpt":
+        return (
+          <>
+            <div className="grid grid-cols-2 gap-4 justify-items-center">
+              <div style={{ width: "200px" }}>
+                <ChatGPTCard 
+                  isCorrect={true}
+                  onActionButtons={handleChatGPTCorrectButtons} 
+                />
+              </div>
+              <div style={{ width: "200px" }}>
+                <ChatGPTCard 
+                  isCorrect={false}
+                  onActionButtons={handleChatGPTIncorrectButtons} 
+                />
+              </div>
+            </div>
+            {versionButtons.size > 0 && (
+              <div className="flex flex-col gap-4 items-center mt-4">
+                {versionButtons.get("chatgpt-correct") && (
+                  <div className="flex flex-col gap-2 items-center">
+                    <div className="text-xs text-gray-600 mb-1">Correct Answer (Green)</div>
+                    <div className="flex flex-row gap-2 flex-wrap justify-center">
+                      {versionButtons.get("chatgpt-correct")}
+                    </div>
+                  </div>
+                )}
+                {versionButtons.get("chatgpt-incorrect") && (
+                  <div className="flex flex-col gap-2 items-center">
+                    <div className="text-xs text-gray-600 mb-1">Wrong Answer (Red)</div>
+                    <div className="flex flex-row gap-2 flex-wrap justify-center">
+                      {versionButtons.get("chatgpt-incorrect")}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </>
+        )
+      case "post-request":
+        return (
+          <>
+            <div className="grid grid-cols-2 gap-20 justify-items-center">
+              <div style={{ width: "200px" }}>
+                <PostRequestCard 
+                  showContext={true} 
+                  withSID={true} 
+                  onActionButtons={handlePostRequestWithSIDButtons} 
+                />
+              </div>
+              <div style={{ width: "200px" }}>
+                <PostRequestCard 
+                  showContext={true} 
+                  withSID={false} 
+                  onActionButtons={handlePostRequestWithoutSIDButtons} 
+                />
+              </div>
+              <div style={{ width: "200px" }} className="col-span-2 justify-self-center">
+                <PostRequestCard 
+                  showContext={false} 
+                  onActionButtons={handlePostRequestNoContextButtons} 
+                />
+              </div>
+            </div>
+            {versionButtons.size > 0 && (
+              <div className="flex flex-col gap-4 items-center mt-4">
+                {versionButtons.get("post-request-withSID") && (
+                  <div className="flex flex-col gap-2 items-center">
+                    <div className="text-xs text-gray-600 mb-1">With SID (Context)</div>
+                    <div className="flex flex-row gap-2 flex-wrap justify-center">
+                      {versionButtons.get("post-request-withSID")}
+                    </div>
+                  </div>
+                )}
+                {versionButtons.get("post-request-withoutSID") && (
+                  <div className="flex flex-col gap-2 items-center">
+                    <div className="text-xs text-gray-600 mb-1">Without SID (Documents)</div>
+                    <div className="flex flex-row gap-2 flex-wrap justify-center">
+                      {versionButtons.get("post-request-withoutSID")}
+                    </div>
+                  </div>
+                )}
+                {versionButtons.get("post-request-noContext") && (
+                  <div className="flex flex-col gap-2 items-center">
+                    <div className="text-xs text-gray-600 mb-1">No Context</div>
+                    <div className="flex flex-row gap-2 flex-wrap justify-center">
+                      {versionButtons.get("post-request-noContext")}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </>
+        )
+      case "reasoning":
+        return (
+          <div style={{ width: "200px" }}>
+            <ReasoningModelCard onActionButtons={setActionButtons} />
+          </div>
+        )
+      case "retrieved-search":
+        return (
+          <>
+            <div style={{ width: "100%", maxWidth: "600px" }}>
+              <RetrievedSearchCard 
+                onActionButtons={handleRetrievedSearchButtons}
+                highlightDocuments={highlightDocuments}
+              />
+            </div>
+            {versionButtons.size > 0 && (
+              <div className="flex flex-col gap-4 items-center mt-4">
+                {versionButtons.get("retrieved-search") && (
+                  <div className="flex flex-col gap-2 items-center">
+                    <div className="text-xs text-gray-600 mb-1">Retrieved Search</div>
+                    <div className="flex flex-row gap-2 flex-wrap justify-center">
+                      {versionButtons.get("retrieved-search")}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </>
+        )
+      case "rag":
+        return (
+          <div style={{ width: "100%" }}>
+            <RAGCard onActionButtons={setActionButtons} />
+          </div>
+        )
+      case "database":
+        return (
+          <>
+            <div className="grid grid-cols-2 gap-20 justify-items-center">
+            <div style={{ width: "200px" }}>
+                <DatabaseSearchCard 
+                  onActionButtons={handleDatabaseDefaultButtons} 
+                />
+              </div>
+              <div style={{ width: "200px" }}>
+                <DatabaseSearchCard 
+                  darkMode={true} 
+                  onActionButtons={handleDatabaseDarkModeButtons} 
+                />
+              </div>
+              <div style={{ width: "200px" }}>
+                <DatabaseSearchCard 
+                  filled={true} 
+                  onActionButtons={handleDatabaseFilledButtons} 
+                />
+              </div>
+            </div>
+            {versionButtons.size > 0 && (
+              <div className="flex flex-col gap-4 items-center mt-4">
+                {versionButtons.get("database-default") && (
+                  <div className="flex flex-col gap-2 items-center">
+                    <div className="text-xs text-gray-600 mb-1">Default</div>
+                    <div className="flex flex-row gap-2 flex-wrap justify-center">
+                      {versionButtons.get("database-default")}
+                    </div>
+                  </div>
+                )}
+                {versionButtons.get("database-darkMode") && (
+                  <div className="flex flex-col gap-2 items-center">
+                    <div className="text-xs text-gray-600 mb-1">Dark Mode</div>
+                    <div className="flex flex-row gap-2 flex-wrap justify-center">
+                      {versionButtons.get("database-darkMode")}
+                    </div>
+                  </div>
+                )}
+                {versionButtons.get("database-filled") && (
+                  <div className="flex flex-col gap-2 items-center">
+                    <div className="text-xs text-gray-600 mb-1">Filled</div>
+                    <div className="flex flex-row gap-2 flex-wrap justify-center">
+                      {versionButtons.get("database-filled")}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </>
+        )
+      case "documents":
+      default:
+        return (
+          <>
+            <div className="flex flex-row gap-4 items-start justify-center flex-wrap">
+              <div style={{ width: "80px" }}>
+                <DocumentVariants title="simple" variant="simple" externalHighlight={highlightDocuments} />
+              </div>
+              <div style={{ width: "80px" }}>
+                <DocumentVariants title="bullets" variant="bullets" />
+              </div>
+              <div style={{ width: "80px" }}>
+                <DocumentVariants title="chart" variant="chart" />
+              </div>
+              <div style={{ width: "80px" }}>
+                <DocumentVariants title="table" variant="table" />
+              </div>
+              <div style={{ width: "80px" }}>
+                <DocumentVariants title="image" variant="image" />
+              </div>
+              <div style={{ width: "103px" }}>
+                <SpreadsheetCard />
+              </div>
+              <div style={{ width: "80px" }}>
+                <EmailCard />
+              </div>
+            </div>
+            <Button onClick={() => setHighlightDocuments(!highlightDocuments)} size="sm">
+              {highlightDocuments ? "Remove Highlight" : "Highlight"}
+            </Button>
+          </>
+        )
     }
-    
-    if (name === 'chatgpt-interface') return { component: <ChatGPTCard />, width: "200px" }
-    if (name === 'database-search') return { component: <DatabaseSearchCard />, width: "200px" }
-
-
-    if (name === 'reasoning-model') return { component: <ReasoningModelCard />, width: "200px" }
-    if (name === 'post-request') return { component: <PostRequestCard />, width: "200px" }
-    
-    // Handle baby document variant
-    if (file === 'baby-document') return { component: <DocumentVariants variant="chart" baby={true} />, width: "80px" }
-
-    return null
   }
-  
-  // Syntax highlighting colors (same as post-request-card)
-  const keywordColor = "#C586C0" // Purple - const, await
-  const variableColor = "#24292e" // Dark gray/black - completion, AI, context, message
-  const functionColor = "#DCDCAA" // Yellow - create
-  const propertyColor = "#9CDCFE" // Light blue - chat, completions, model, messages, role, content
-  const stringColor = "#CE9178" // Orange/green - 'model', 'user', template literal backticks
-  const punctuationColor = "#808080" // Gray - {}, [], :, ,, .
 
   return (
     <main style={{ minHeight: "100vh", background: "white", padding: "32px" }}>
       <div style={{ maxWidth: "1280px", margin: "0 auto" }}>
         
-       {/* Buttons */}
-       <div className="flex flex-row gap-2 pb-2">
-        {completedSVGFiles.map((file: string) => (
-          <Button className="w-[120px] overflow-hidden" key={file} onClick={() => setSelectedSvg(file)}>
-            {file}
+        {/* First row: Toggle between views */}
+        <div className="flex flex-row gap-2 mb-4 justify-center">
+          <Button 
+            onClick={() => { setView("documents"); setActionButtons(null); setVersionButtons(new Map()) }} 
+            variant={view === "documents" ? "default" : "outline"}
+            size="sm"
+          >
+            All Documents
           </Button>
-        ))}
-       </div>
-
-       <div className="flex flex-row gap-2">
-        {incompleteSVGFiles.map((file: string) => (
-          <Button className="w-[120px] overflow-hidden" key={file} onClick={() => setSelectedSvg(file)}>
-            {file}
-            </Button>
-          ))}
-       </div> 
-
-       <div className="flex flex-row gap-4 mt-8 items-center justify-center">
-        {/* the image */}
-        
-      
-       
-       {/* the svg  */}
-        <div className={selectedSvg === "reasoning-model.svg" ? "flex flex-col gap-4" : "flex flex-col gap-4 h-[130px]"}>
-          {selectedSvg && selectedSvg !== 'baby-document' && (
-            <img 
-              src={`/svg/${selectedSvg}`} 
-              alt={selectedSvg} 
-              style={{ 
-                width: "auto", 
-                height: selectedSvg === "reasoning-model.svg" ? "auto" : "100%",
-                maxWidth: selectedSvg === "reasoning-model.svg" ? "150px" : "none"
-              }}
-            />
-          )}
-          {/* if reasoning model then show the reasoning model card 2 and 3 */}
-          {selectedSvg === "reasoning-model.svg" && (
-            <div className="flex flex-col gap-4">
-              <img 
-                src={`/svg/reasoning-model2.svg`} 
-                alt="reasoning-model2" 
-                style={{ width: "auto", height: "auto", maxWidth: "150px" }}
-              />
-              <img 
-                src={`/svg/reasoning-model3.svg`} 
-                alt="reasoning-model3" 
-                style={{ width: "auto", height: "auto", maxWidth: "150px" }}
-              />
-            </div>
-          )}  
-
-
+          <Button 
+            onClick={() => { setView("chatgpt"); setActionButtons(null); setVersionButtons(new Map()) }} 
+            variant={view === "chatgpt" ? "default" : "outline"}
+            size="sm"
+          >
+            ChatGPT
+          </Button>
+          <Button 
+            onClick={() => { setView("database"); setActionButtons(null); setVersionButtons(new Map()) }} 
+            variant={view === "database" ? "default" : "outline"}
+            size="sm"
+          >
+            Database
+          </Button>
+          <Button 
+            onClick={() => { setView("post-request"); setActionButtons(null); setVersionButtons(new Map()) }} 
+            variant={view === "post-request" ? "default" : "outline"}
+            size="sm"
+            
+          >
+            Post Request
+          </Button>
+          <Button 
+            onClick={() => { setView("reasoning"); setActionButtons(null); setVersionButtons(new Map()) }} 
+            variant={view === "reasoning" ? "default" : "outline"}
+            size="sm"
+          >
+            Reasoning
+          </Button>
+          <Button 
+            onClick={() => { setView("retrieved-search"); setActionButtons(null); setVersionButtons(new Map()) }} 
+            variant={view === "retrieved-search" ? "default" : "outline"}
+            size="sm"
+          >
+            Retrieved Search
+          </Button>
+          <Button 
+            onClick={() => { setView("rag"); setActionButtons(null); setVersionButtons(new Map()) }} 
+            variant={view === "rag" ? "default" : "outline"}
+            size="sm"
+          >
+            RAG
+          </Button>
         </div>
-        <div className={selectedSvg && (selectedSvg.includes("reasoning") || selectedSvg.includes("post-request")) ? "flex flex-col gap-4" : "flex flex-col gap-4 h-[130px]"}>
-          {selectedSvg && selectedSvg !== 'baby-document' && (
-            <>
-              <img 
-                src={`/pictures/${selectedSvg.replace('.svg', '.png')}`} 
-                alt={selectedSvg || "no image"} 
-                style={{ 
-                  width: "auto", 
-                  height: (selectedSvg.includes("reasoning") || selectedSvg.includes("post-request")) ? "auto" : "100%",
-                  maxWidth: (selectedSvg.includes("reasoning") || selectedSvg.includes("post-request")) ? "150px" : "none"
-                }} 
-              />
-              {/* if table then show second image */}
-              {selectedSvg.includes("table") && (
-                <div className="flex flex-row gap-4 mt-4">
-                  <div className="h-[110px]">
-                    <img 
-                      src={`/pictures/${selectedSvg.replace('.svg', '2.png')}`} 
-                      alt={selectedSvg || "no image"} 
-                      style={{ width: "auto", height: "100%" }} 
-                    />
-                  </div>
-                </div>
-              )}
-              {/* if reasoning model then show images 2, 3, and 4 */}
-              {selectedSvg.includes("reasoning") && (
-                <div className="flex flex-col gap-4">
-                  <img 
-                    src={`/pictures/reasoning-model2.png`} 
-                    alt="reasoning-model2" 
-                    style={{ width: "auto", height: "auto", maxWidth: "150px" }} 
-                  />
-                  <img 
-                    src={`/pictures/reasoning-model3.png`} 
-                    alt="reasoning-model3" 
-                    style={{ width: "auto", height: "auto", maxWidth: "150px" }} 
-                  />
-                  <img 
-                    src={`/pictures/reasoning-model4.png`} 
-                    alt="reasoning-model4" 
-                    style={{ width: "auto", height: "auto", maxWidth: "150px" }} 
-                  />
-                </div>
-              )}
-              {/* if post request then show api request image */}
-              {selectedSvg.includes("post-request") && (
-                <div className="flex flex-col gap-4">
-                  <img 
-                    src={`/pictures/api request.png`} 
-                    alt="api request" 
-                    style={{ width: "auto", height: "auto", maxWidth: "150px" }} 
-                  />
-                </div>
-              )}
-            </>
-          )}
-        </div>
-        {selectedSvg && (() => {
-          const result = getComponentForSvg(selectedSvg)
-          if (!result) return null
-          return (
-            <div className="flex flex-col gap-4 items-center justify-center">
-              <div style={{ width: result.width }}>
-                {result.component}
-              </div>
-              {/* if chart then do chart 1 and chart 2 */}
-              {selectedSvg.includes("chart") && (
-                <div style={{ width: "80px" }}>
-                  <DocumentVariants title="chart" variant="chart2" />
-                </div>
-              )}
-              {/* If database then also dark mode and light mode */}
-              {selectedSvg.includes("database") && (
-                <>
-                  <div style={{ width: "200px" }}>
-                    <DatabaseSearchCard darkMode={true} />
-                  </div>
-               
-                 <div style={{ width: "200px" }}>
-                   <DatabaseSearchCard filled={true} middle={true} />
-                 </div>
-               </>
-              )}
-              {/* if search then show also document and chatgpt */}
-              {selectedSvg.includes("search") && (
-                <>
-                  <div style={{ width: "80px" }}>
-                    <DocumentVariants title="pricing.pdf" variant="bullets" />
-                  </div>
-                  
-                </>
-              )}
-              {selectedSvg.includes("reasoning") && (
-                <>
-                  <div style={{ width: "200px" }}>
-                    <ChatGPTCard />
-                  </div>
-                  
-                </>
-              )}
-              {/* if post request then show code */}
-              {selectedSvg.includes("post-request") && (
-                <>
-                <div
-                    style={{
-                      fontFamily: "'Monaco', 'Menlo', 'Consolas', 'Courier New', monospace",
-                      fontSize: "8px",
-                      lineHeight: "1.6",
-                      padding: "6px",
-                      borderRadius: "8px",
-                      backgroundColor: "#ffffff",
-                      border: "1px solid #e1e4e8",
-                      maxWidth: "500px",
-                      overflow: "auto",
-                      color: "#24292e",
-                    }}
-                  >
-                    <pre style={{ margin: 0, whiteSpace: "pre", wordBreak: "normal" }}>
-                      <code>
-                        <span style={{ color: keywordColor }}>const</span>{" "}
-                        <span style={{ color: variableColor }}>completion</span>{" "}
-                        <span style={{ color: punctuationColor }}>=</span>{" "}
-                        <span style={{ color: keywordColor }}>await</span>{" "}
-                        <span style={{ color: variableColor }}>AI</span>
-                        <span style={{ color: punctuationColor }}>.</span>
-                        <span style={{ color: propertyColor }}>chat</span>
-                        <span style={{ color: punctuationColor }}>.</span>
-                        <span style={{ color: propertyColor }}>completions</span>
-                        <span style={{ color: punctuationColor }}>.</span>
-                        <span style={{ color: functionColor }}>create</span>
-                        <span style={{ color: punctuationColor }}>(</span>
-                        <span style={{ color: punctuationColor }}>{"{"}</span>
-                        {"\n  "}
-                        <span style={{ color: propertyColor }}>model</span>
-                        <span style={{ color: punctuationColor }}>: </span>
-                        <span style={{ color: stringColor }}>'model'</span>
-                        <span style={{ color: punctuationColor }}>,</span>
-                        {"\n  "}
-                        <span style={{ color: propertyColor }}>messages</span>
-                        <span style={{ color: punctuationColor }}>: [</span>
-                        {"\n    "}
-                        <span style={{ color: punctuationColor }}>{"{"}</span>
-                        {"\n      "}
-                        <span style={{ color: propertyColor }}>role</span>
-                        <span style={{ color: punctuationColor }}>: </span>
-                        <span style={{ color: stringColor }}>'user'</span>
-                        <span style={{ color: punctuationColor }}>,</span>
-                        {"\n      "}
-                        <span style={{ color: propertyColor }}>content</span>
-                        <span style={{ color: punctuationColor }}>: </span>
-                        <span style={{ color: stringColor }}>{"`"}</span>
-                        <span style={{ color: stringColor }}>{"${"}</span>
-                        <span style={{ color: variableColor }}>context</span>
-                        <span style={{ color: stringColor }}>{"}"}</span>
-                        <span style={{ color: stringColor }}>{"\\n\\n"}</span>
-                        <span style={{ color: stringColor }}>{"${"}</span>
-                        <span style={{ color: variableColor }}>message</span>
-                        <span style={{ color: stringColor }}>{"}"}</span>
-                        <span style={{ color: stringColor }}>{"`"}</span>
-                        {"\n    "}
-                        <span style={{ color: punctuationColor }}>{"}"}</span>
-                        {"\n  "}
-                        <span style={{ color: punctuationColor }}>]</span>
-                        {"\n"}
-                        <span style={{ color: punctuationColor }}>{"}"}</span>
-                        <span style={{ color: punctuationColor }}>);</span>
-                      </code>
-                    </pre>
-                  </div>
-                <div className="flex flex-row gap-20">
-                  <div style={{ width: "200px" }}>
-                    <PostRequestCard showContext={true} withSID={true} />
-                  </div>
-                  <div style={{ width: "200px" }}>
-                    <PostRequestCard showContext={true} withSID={false} documents={["chart", "bullets", "simple", "table", "image"]} />
-                  </div>
-                  </div>
-                  
-                  
-                </>
-              )}
 
-            </div>
-          )
-        })()}
-      </div>
+        {/* Second row: Action buttons for currently shown component */}
+        {actionButtons && (
+          <div className="flex flex-row gap-2 mb-4 flex-wrap justify-center">
+            {actionButtons}
+          </div>
+        )}
+
+        {/* Content */}
+        <div className="flex flex-col gap-4 items-center">
+          {renderContent()}
+        </div>
+
       </div>
     </main>
   )
 }
-

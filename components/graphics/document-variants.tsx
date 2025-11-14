@@ -1,12 +1,9 @@
 import { useState, useEffect } from "react"
 import { DummyLine, DummyParagraph } from "./helpers/dummy-helpers"
 import { Document } from "./helpers/document"
-import { Button } from "@/components/ui/button"
 import "../graphics/helpers/globals.css"
 
-
-
-export function DocumentVariants({title = "Document", variant, highlightDummy , baby = false}: { title?: string; variant: string; highlightDummy?: boolean; baby?: boolean}) {
+export function DocumentVariants({title = "Document", variant, highlightDummy, externalHighlight, width = "80px"}: { title?: string; variant: string; highlightDummy?: boolean; externalHighlight?: boolean; width?: string}) {
   const [internalHighlightDummyKey, setInternalHighlightDummyKey] = useState(0)
   const [internalShouldHighlight, setInternalShouldHighlight] = useState(false)
 
@@ -15,6 +12,22 @@ export function DocumentVariants({title = "Document", variant, highlightDummy , 
     setInternalShouldHighlight(false)
     setInternalHighlightDummyKey(0)
   }, [variant])
+
+  // Handle external highlight prop
+  useEffect(() => {
+    if (externalHighlight !== undefined) {
+      if (externalHighlight && variant === "simple") {
+        setInternalShouldHighlight(false) // Reset first
+        setInternalHighlightDummyKey(prev => prev + 1) // Increment key to force re-render
+        // Then trigger highlight after a brief delay to ensure re-render happens first
+        setTimeout(() => {
+          setInternalShouldHighlight(true)
+        }, 10)
+      } else {
+        setInternalShouldHighlight(false)
+      }
+    }
+  }, [externalHighlight, variant])
 
   const handleHighlightClick = () => {
     if (variant === "simple") {
@@ -33,25 +46,14 @@ export function DocumentVariants({title = "Document", variant, highlightDummy , 
       if (variant === "chart2") return <ChartContent2 />
       if (variant === "bullets") return <BulletsContent />
       if (variant === "image") return <ImageContent />
-      if (variant === "simple") return <SimpleContent key={`simple-${internalHighlightDummyKey}`} highlightDummy={internalShouldHighlight} />
+      if (variant === "simple") return <SimpleContent key={`simple-${internalHighlightDummyKey}`} highlightDummy={internalShouldHighlight || (highlightDummy ?? false)} />
     }
     
-    const documentContent = (
-        <Document title={baby ? "baby.pdf" : variant+".pdf"} content={getContent()} />
+    return (
+      <div style={{ width: width }}>  
+        <Document title={variant+".pdf"} content={getContent()} />
+      </div>
     )
-    
-    // Apply baby scaling to any variant if baby is true
-    if (baby) {
-      return (
-        <div className="flex flex-col gap-2 items-center justify-center">
-          <div style={{ transform: "scale(0.75)", transformOrigin: "center" }}>
-          {documentContent}
-          </div>
-        </div>
-      )
-    }
-    
-    return documentContent
 }
 
 
@@ -249,7 +251,6 @@ function ChartContent2() {
     </div>
   )
 }
-
 
 function TableContent() {
   return (

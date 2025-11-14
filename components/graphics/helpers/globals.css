@@ -403,3 +403,121 @@
   transform-origin: center;
   overflow: visible;
 }
+
+/* Status transition - smooth fade out and in */
+.status-fade-in {
+  animation: statusFadeOutIn 0.3s ease-in-out forwards;
+}
+
+@keyframes statusFadeOutIn {
+  0% {
+    opacity: 1;
+  }
+  30% {
+    opacity: 0.7;
+  }
+  70% {
+    opacity: 0.7;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+/* Answer section fade-in animation */
+.answer-section-fade-in {
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+/* Paper stack animation - fade in from different angles, preserving rotation */
+@keyframes paperStackFadeIn {
+  0% {
+    opacity: 0;
+    transform: rotate(var(--paper-rotation, 0deg)) scale(0.64) translate(var(--entry-x, 0), var(--entry-y, 0));
+  }
+  100% {
+    opacity: 1;
+    transform: rotate(var(--paper-rotation, 0deg)) scale(0.8) translate(0, 0);
+  }
+}
+
+.paper-stack-animate {
+  animation: paperStackFadeIn 0.3s ease-out forwards;
+  opacity: 0; /* Start hidden, animation will make it visible */
+}
+
+/* Indicator path reveal animation - Checkmark */
+@keyframes indicatorPathRevealCheck {
+  from {
+    stroke-dashoffset: var(--path-length, 200);
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Indicator path reveal animation - X (first path) */
+@keyframes indicatorPathRevealXFirst {
+  from {
+    stroke-dashoffset: var(--path-length, 200);
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Indicator path reveal animation - X (second path) */
+@keyframes indicatorPathRevealXSecond {
+  from {
+    stroke-dashoffset: var(--path-length, 200);
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.indicator-path-reveal svg {
+  overflow: visible;
+}
+
+/* Checkmark - single path */
+.indicator-path-reveal svg.indicator-check path {
+  stroke-dasharray: var(--path-length, 200);
+  stroke-dashoffset: var(--path-length, 200);
+  animation: indicatorPathRevealCheck 0.25s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none !important;
+}
+
+/* X - first path, animate after second completes */
+.indicator-path-reveal svg.indicator-x path:nth-child(1) {
+  stroke-dasharray: var(--path-length, 200);
+  stroke-dashoffset: var(--path-length, 200);
+  animation: indicatorPathRevealXFirst 0.18s cubic-bezier(0.4, 0, 0.2, 1) 0.18s forwards;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none !important;
+}
+
+/* X - second path, animate immediately (first) */
+.indicator-path-reveal svg.indicator-x path:nth-child(2) {
+  stroke-dasharray: var(--path-length, 200);
+  stroke-dashoffset: var(--path-length, 200);
+  animation: indicatorPathRevealXSecond 0.18s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none !important;
+}
+
+/* Fallback fade-in animation for compatibility */
+@keyframes indicatorFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
