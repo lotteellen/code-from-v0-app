@@ -2,14 +2,15 @@
 
 import { IBM_Plex_Mono } from 'next/font/google'
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { BrowserWindow } from "./helpers/browser-window"
-import { DummyLine } from "./helpers/dummy-helpers"
+import { BrowserWindow } from "../helpers/browser-window"
+import { DummyLine } from "../helpers/dummy-helpers"
 import { AnswerSection } from './reasoning-model-card'
-import { userMessage } from './chatgpt-card'
-import { Document } from './helpers/document'
+import { userMessage } from './AI-chat'
+import { Document } from '../helpers/document'
 import { DocumentVariants } from './document-variants'
 import { Button } from '@/components/ui/button'
-import "./helpers/globals.css"
+import { POST_REQUEST_TIMINGS, RAG_HIGHLIGHT_TIMINGS } from "../helpers/animation-timings"
+import "../helpers/globals.css"
 
 const dummyHeight = "var(--line-height-big)"
 const dummyColor = "var(--light-grey)"
@@ -186,6 +187,26 @@ const createHighlightedContent = (animateContext: boolean, animateMessage: boole
   </div>
 )
 
+// Helper function to get highlight lines for each document variant
+const getHighlightLinesForVariant = (variant: string): number[] => {
+  switch (variant.toLowerCase()) {
+    case 'simple':
+      return [...RAG_HIGHLIGHT_TIMINGS.DOCUMENT_HIGHLIGHT_LINES.SIMPLE]
+    case 'bullets':
+      return [...RAG_HIGHLIGHT_TIMINGS.DOCUMENT_HIGHLIGHT_LINES.BULLETS]
+    case 'chart':
+      return [...RAG_HIGHLIGHT_TIMINGS.DOCUMENT_HIGHLIGHT_LINES.CHART]
+    case 'table':
+      return [...RAG_HIGHLIGHT_TIMINGS.DOCUMENT_HIGHLIGHT_LINES.TABLE]
+    case 'image':
+      // Image variant doesn't have predefined highlights, so use at least one line
+      return [0]
+    default:
+      // For any unknown variant, ensure at least one highlight (use first line)
+      return [0]
+  }
+}
+
 const documentStack = (documents: string[], animateContext: boolean) => {
   const stackStyle = [
     { rotate: '0deg', bottom: -56, left: -45 },    // bullets (leftmost, behind) - messy
@@ -217,7 +238,11 @@ const documentStack = (documents: string[], animateContext: boolean) => {
 
   // Completely random delays - no pattern, all over the place
   // bullets (index 0) should be last
-  const randomDelays = [400, 250, 120, 180, 80, 200, 300, 150, 220, 100] // milliseconds - chaotic timing, bullets last
+  const randomDelays = POST_REQUEST_TIMINGS.DOCUMENT_STACK_DELAYS_MS
+  
+  // Documents should only appear AFTER the highlight animation completes
+  // Add the highlight duration to each delay so they appear after highlight finishes
+  const highlightDuration = POST_REQUEST_TIMINGS.CONTEXT_ANIMATION_DURATION_MS
 
   const totalDocuments = stackStyle.length
 
@@ -227,7 +252,9 @@ const documentStack = (documents: string[], animateContext: boolean) => {
       {stackStyle.map((style, index) => {
         const entryDir = entryDirections[index % entryDirections.length]
         // Completely random delays - no z-index ordering, just chaos
-        const animationDelay = randomDelays[index % randomDelays.length]
+        // Add highlight duration so documents appear AFTER highlight completes
+        const baseDelay = randomDelays[index % randomDelays.length]
+        const animationDelay = animateContext ? highlightDuration + baseDelay : 0
         
         return (
           <div 
@@ -241,11 +268,14 @@ const documentStack = (documents: string[], animateContext: boolean) => {
               bottom: `${style.bottom}px`,
               left: `${style.left}px`,
               zIndex: totalDocuments - index,
-              animationDelay: animateContext ? `${animationDelay}ms` : '0ms',
+              animationDelay: `${animationDelay}ms`,
               opacity: animateContext ? undefined : 1, // Ensure visible when not animating
             } as React.CSSProperties}
           >
-            <DocumentVariants variant={documents[index]} />
+            <DocumentVariants 
+              variant={documents[index]} 
+              highlightLines={getHighlightLinesForVariant(documents[index])}
+            />
           </div>
         )
       })}
@@ -258,7 +288,9 @@ export function PostRequestCard({
   withSID = true, 
   documents = ["bullets", "table", "image", "simple", "chart", "simple", "table", "image", "chart", "bullets"], 
   onActionButtons,
-  onFunctionsReady
+  onFunctionsReady,
+  isActive = true,
+  pulsate = false,
 }: { 
   showContext?: boolean; 
   withSID?: boolean; 
@@ -268,6 +300,8 @@ export function PostRequestCard({
     animate: () => Promise<void>;
     reset: () => void;
   }) => void;
+  isActive?: boolean;
+  pulsate?: boolean;
 }) {
   const [animateContext, setAnimateContext] = useState(false)
   const [animateMessage, setAnimateMessage] = useState(false)
@@ -277,13 +311,23 @@ export function PostRequestCard({
   const userMessageRef = useRef<HTMLDivElement>(null)
   const onActionButtonsRef = useRef(onActionButtons)
   const messageTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const userMessageTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const initialDelayTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   const handleAnimate = useCallback((): Promise<void> => {
     return new Promise((resolve) => {
-      // Clear any existing timeout
+      // Clear any existing timeouts
       if (messageTimeoutRef.current) {
         clearTimeout(messageTimeoutRef.current)
         messageTimeoutRef.current = null
+      }
+      if (userMessageTimeoutRef.current) {
+        clearTimeout(userMessageTimeoutRef.current)
+        userMessageTimeoutRef.current = null
+      }
+      if (initialDelayTimeoutRef.current) {
+        clearTimeout(initialDelayTimeoutRef.current)
+        initialDelayTimeoutRef.current = null
       }
       
       // Reset everything first
@@ -291,33 +335,52 @@ export function PostRequestCard({
       setAnimateMessage(false)
       setAnimateContext(false)
       
-      // Start context animation
-      setAnimateContext(true)
-      setContextResetKey(prev => prev + 1)
+      // Wait for initial delay before starting animations
+      const initialDelay = POST_REQUEST_TIMINGS.INITIAL_DELAY_BEFORE_ANIMATION_MS
       
-      // Calculate when context animation completes:
-      // - Documents: max delay (400ms) + animation duration (300ms) = 700ms
-      // - Highlight animation: 800ms
-      // Wait for the longer one plus a small buffer
-      const contextAnimationDuration = 850 // 800ms highlight + 50ms buffer
-      
-      // After context animation completes, start message animation
-      messageTimeoutRef.current = setTimeout(() => {
-        setAnimateMessage(true)
-        setMessageResetKey(prev => prev + 1)
-        setShowUserMessage(true)
-        messageTimeoutRef.current = null
-        // Resolve after message animation completes (message animation is instant, so resolve immediately)
-        resolve()
-      }, contextAnimationDuration)
+      initialDelayTimeoutRef.current = setTimeout(() => {
+        initialDelayTimeoutRef.current = null
+        // Start context animation
+        setAnimateContext(true)
+        setContextResetKey(prev => prev + 1)
+        
+        // Calculate when context animation completes:
+        // - Documents: max delay + animation duration
+        // - Highlight animation: 800ms (CSS) + 50ms buffer
+        // Wait for the longer one plus a small buffer
+        const contextAnimationDuration = POST_REQUEST_TIMINGS.CONTEXT_ANIMATION_DURATION_MS
+        
+        // After context animation completes, start message animation
+        messageTimeoutRef.current = setTimeout(() => {
+          setAnimateMessage(true)
+          setMessageResetKey(prev => prev + 1)
+          messageTimeoutRef.current = null
+          // Wait for message highlight to complete before showing user message
+          // Message highlight animation is 800ms (CSS) + 50ms buffer = 850ms
+          userMessageTimeoutRef.current = setTimeout(() => {
+            setShowUserMessage(true)
+            userMessageTimeoutRef.current = null
+          }, contextAnimationDuration)
+          // Resolve after message animation completes (message animation is instant, so resolve immediately)
+          resolve()
+        }, contextAnimationDuration)
+      }, initialDelay)
     })
   }, [])
 
   const handleReset = useCallback(() => {
-    // Clear any pending timeout
+    // Clear any pending timeouts
     if (messageTimeoutRef.current) {
       clearTimeout(messageTimeoutRef.current)
       messageTimeoutRef.current = null
+    }
+    if (userMessageTimeoutRef.current) {
+      clearTimeout(userMessageTimeoutRef.current)
+      userMessageTimeoutRef.current = null
+    }
+    if (initialDelayTimeoutRef.current) {
+      clearTimeout(initialDelayTimeoutRef.current)
+      initialDelayTimeoutRef.current = null
     }
     // Reset all state
     setShowUserMessage(false)
@@ -334,11 +397,17 @@ export function PostRequestCard({
     onActionButtonsRef.current = onActionButtons
   }, [onActionButtons])
 
-  // Cleanup timeout on unmount
+  // Cleanup timeouts on unmount
   useEffect(() => {
     return () => {
       if (messageTimeoutRef.current) {
         clearTimeout(messageTimeoutRef.current)
+      }
+      if (userMessageTimeoutRef.current) {
+        clearTimeout(userMessageTimeoutRef.current)
+      }
+      if (initialDelayTimeoutRef.current) {
+        clearTimeout(initialDelayTimeoutRef.current)
       }
     }
   }, [])
@@ -370,8 +439,8 @@ export function PostRequestCard({
   }, [animateContext, animateMessage, showContext, handleAnimate, handleReset])
 
   return (
-    <div style={{ position: "relative" }}>
-      <BrowserWindow title="Post Request" content={content} fitContent={true} />
+    <div style={{ position: "relative", opacity: isActive ? 1 : "var(--inactive)" }}>
+      <BrowserWindow title="Post Request" content={content} fitContent={true} pulsate={pulsate} />
       {showContext && (
         <div style={{ position: "absolute", bottom: 0, right: 0, transform: "translateX(15%) translateY(30%)", display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "8px" }}>
           {showUserMessage && (
@@ -397,7 +466,9 @@ export function PostRequestCard({
                   opacity: animateContext ? undefined : 0,
                   pointerEvents: animateContext ? undefined : "none",
                   display: animateContext ? undefined : 'none',
-                  visibility: animateContext ? undefined : 'hidden'
+                  visibility: animateContext ? undefined : 'hidden',
+                  // Delay animation until after highlight completes
+                  animationDelay: animateContext ? `${POST_REQUEST_TIMINGS.CONTEXT_ANIMATION_DURATION_MS}ms` : '0ms'
                 }}
               >
                 <Document content={<AnswerSection borderTop={false} showText={false} />} aspectRatio="" verticalPadding={false} />

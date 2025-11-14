@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback } from "react"
 import { AIChatCard } from "@/components/graphics/elements/AI-chat"
 import { PostRequestCard } from "@/components/graphics/elements/post-request-card"
 import { RetrievedSearchCard } from "@/components/graphics/elements/retrieved-search-card"
+import { ReasoningModelCard } from "@/components/graphics/elements/reasoning-model-card"
 import { Button } from "@/components/ui/button"
 import { Container } from "@/components/graphics/container"
 import { POST_REQUEST_TIMINGS, AI_CHAT_TIMINGS } from "@/components/graphics/helpers/animation-timings"
@@ -16,10 +17,11 @@ type ChatGPTFunctions = {
 }
 
 type RetrievedSearchFunctions = {
-  addTextAndRemoveHighlight: () => Promise<void>;
+  addTextAndRemoveHighlight: (text?: string) => Promise<void>;
   search: () => Promise<void>;
   highlight: () => Promise<void>;
   reset: () => void;
+  setQuery: (text: string) => void;
 }
 
 type PostRequestFunctions = {
@@ -27,9 +29,14 @@ type PostRequestFunctions = {
   reset: () => void;
 }
 
+type ReasoningModelFunctions = {
+  runSequentialFlow: () => Promise<void>;
+  reset: () => void;
+}
+
 const DEFAULT_QUERY = "What was our enterprise pricing before we pivoted to SMB?"
 
-export function RAGPipelineCard({
+export function SIDPipelineCard({
   onActionButtons,
   query = DEFAULT_QUERY,
 }: {
@@ -39,12 +46,14 @@ export function RAGPipelineCard({
   const chatGPTFunctionsRef = useRef<ChatGPTFunctions | null>(null)
   const retrievedSearchFunctionsRef = useRef<RetrievedSearchFunctions | null>(null)
   const postRequestFunctionsRef = useRef<PostRequestFunctions | null>(null)
+  const reasoningModelFunctionsRef = useRef<ReasoningModelFunctions | null>(null)
   const onActionButtonsRef = useRef(onActionButtons)
   const [isAnimating, setIsAnimating] = useState(false)
-  const [chatActive, setChatActive] = useState(false)
-  const [retrievalActive, setRetrievalActive] = useState(false)
-  const [postActive, setPostActive] = useState(false)
   const [isAssistantAnimating, setIsAssistantAnimating] = useState(false)
+  const [chatActive, setChatActive] = useState(false)
+  const [reasoningActive, setReasoningActive] = useState(false)
+  const [postActive, setPostActive] = useState(false)
+  const [retrievalActive, setRetrievalActive] = useState(false)
 
   // Keep ref in sync with prop
   useEffect(() => {
@@ -63,6 +72,10 @@ export function RAGPipelineCard({
     postRequestFunctionsRef.current = functions
   }, [])
 
+  const handleReasoningModelFunctionsReady = useCallback((functions: ReasoningModelFunctions) => {
+    reasoningModelFunctionsRef.current = functions
+  }, [])
+
   const runSequentialAnimation = useCallback(async () => {
     if (isAnimating) {
       return // Prevent multiple simultaneous animations
@@ -74,57 +87,66 @@ export function RAGPipelineCard({
       const chatGPT = chatGPTFunctionsRef.current
       const retrievedSearch = retrievedSearchFunctionsRef.current
       const postRequest = postRequestFunctionsRef.current
+      const reasoningModel = reasoningModelFunctionsRef.current
 
-      if (!chatGPT || !retrievedSearch || !postRequest) {
-        console.warn("Not all component functions are ready")
+      if (!chatGPT || !postRequest) {
+        console.warn("Required component functions are not ready")
+        setIsAnimating(false)
+        return
+      }
+
+      if (!retrievedSearch) {
+        console.warn("Retrieved search functions are not ready")
+        setIsAnimating(false)
+        return
+      }
+
+      if (!reasoningModel) {
+        console.warn("Reasoning model functions are not ready")
         setIsAnimating(false)
         return
       }
 
       // Step 1: Animate user message in chatgpt component
-      // Chat and retrieval active briefly, post inactive
+      // Chat active initially
       setChatActive(true)
-      setRetrievalActive(true)
+      setReasoningActive(false)
       setPostActive(false)
+      setRetrievalActive(false)
       await chatGPT.animateUserMessage()
 
-      // Step 2: When done: Call add text + remove highlight in retrieved search data
-      // Chat and retrieval still active briefly
-      await retrievedSearch.addTextAndRemoveHighlight()
-
-      // Step 3: When done: Call unhighlight function in chatgpt
-      // Chat becomes inactive, retrieval still active (steps 2-5)
+      // Step 2: Start reasoning model sequence
+      // Reasoning becomes active, chat becomes inactive
       setChatActive(false)
-      await chatGPT.unhighlightLines()
+      setReasoningActive(true)
+      setRetrievalActive(false)
+      setPostActive(false)
+      // The reasoning model will handle:
+      // - onThinkingStart: unhighlight lines in ChatGPT (handled via callback)
+      // - onRetrievalReady: trigger retrieval in retrieved search (handled via callback)
+      await reasoningModel.runSequentialFlow()
 
-      // Step 4: When done: Trigger search in retrieved search
-      // Retrieval still active (steps 2-5)
-      await retrievedSearch.search()
-
-      // Step 5: When done: Trigger highlight in retrieved search
-      // Retrieval still active (steps 2-5)
-      await retrievedSearch.highlight()
-
-      // Break between retrieval completion and post animation
+      // Break between retrieval completion and post animation (same as RAG)
       await new Promise(resolve => setTimeout(resolve, POST_REQUEST_TIMINGS.DELAY_AFTER_RETRIEVAL_MS))
 
-      // Step 6: When done: Trigger animate in post request
-      // Post active, all others inactive
+      // Step 6: After reasoning sequence is done, trigger animate in post request (with SID context)
+      // Post becomes active, reasoning becomes inactive
       setChatActive(false)
+      setReasoningActive(false)
       setRetrievalActive(false)
       setPostActive(true)
       await postRequest.animate()
 
-      // Step 7: When done: Trigger assistant in chatgpt
-      // Chat and post active while assistant message is generated
-      setChatActive(true)
-      setRetrievalActive(false)
-      setPostActive(true)
+      // Short break after post starts pulsating before assistant response begins (same as RAG)
       setIsAssistantAnimating(true)
-      
-      // Short break after post starts pulsating before assistant response begins
       await new Promise(resolve => setTimeout(resolve, AI_CHAT_TIMINGS.PAUSE_AFTER_POST_PULSATION_MS))
       
+      // Step 7: When done: Trigger assistant in chatgpt (with correct answer)
+      // Chat and post active while assistant message is generated
+      setChatActive(true)
+      setReasoningActive(false)
+      setRetrievalActive(false)
+      setPostActive(true)
       await chatGPT.animateAssistantMessage()
       // Post becomes inactive when indicator (check/cross) animation completes
       setIsAssistantAnimating(false)
@@ -140,6 +162,7 @@ export function RAGPipelineCard({
     const chatGPT = chatGPTFunctionsRef.current
     const retrievedSearch = retrievedSearchFunctionsRef.current
     const postRequest = postRequestFunctionsRef.current
+    const reasoningModel = reasoningModelFunctionsRef.current
 
     if (chatGPT) {
       chatGPT.reset()
@@ -150,13 +173,17 @@ export function RAGPipelineCard({
     if (postRequest) {
       postRequest.reset()
     }
+    if (reasoningModel) {
+      reasoningModel.reset()
+    }
     
     setIsAnimating(false)
+    setIsAssistantAnimating(false)
     // Reset all active states
     setChatActive(false)
-    setRetrievalActive(false)
+    setReasoningActive(false)
     setPostActive(false)
-    setIsAssistantAnimating(false)
+    setRetrievalActive(false)
   }, [])
 
   useEffect(() => {
@@ -188,31 +215,60 @@ export function RAGPipelineCard({
     <Container
       left={
         <AIChatCard 
-          isCorrect={false}
+          isCorrect={true}
           onFunctionsReady={handleChatGPTFunctionsReady}
           query={query}
-          isActive={chatActive}
         />
       }
       middle={
-        <PostRequestCard 
-          showContext={true} 
-          withSID={false} 
-          onFunctionsReady={handlePostRequestFunctionsReady}
-          isActive={postActive}
-          pulsate={isAssistantAnimating}
-        />
+        <div className="flex flex-col gap-8 items-center h-full justify-between">
+          <ReasoningModelCard 
+            onActionButtons={undefined} 
+            onFunctionsReady={handleReasoningModelFunctionsReady}
+            query={query}
+            onBeforeQueryText={async () => {
+              // Unhighlight lines in AI chat right before query text is inserted
+              const chatGPT = chatGPTFunctionsRef.current
+              if (chatGPT) {
+                await chatGPT.unhighlightLines()
+              }
+            }}
+            onRetrievalReady={async (stepIndex: number, retrievalText: string) => {
+              // Each time a "wait" is called within the reasoning model (retrieval needed),
+              // trigger a retrieval in the retrieved search
+              // Retrieval becomes active during this process
+              setRetrievalActive(true)
+              const retrievedSearch = retrievedSearchFunctionsRef.current
+              if (retrievedSearch) {
+                // First: insert text, unhighlight, and start retrieval
+                await retrievedSearch.addTextAndRemoveHighlight(retrievalText)
+                // Then: perform the search
+                await retrievedSearch.search()
+              }
+              // Retrieval becomes inactive after search completes
+              setRetrievalActive(false)
+            }}
+          />
+          <div className="flex items-end">
+            <PostRequestCard 
+              showContext={true} 
+              withSID={true} 
+              onFunctionsReady={handlePostRequestFunctionsReady}
+              pulsate={isAssistantAnimating}
+            />
+          </div>
+        </div>
       }
       right={
         <RetrievedSearchCard 
           onFunctionsReady={handleRetrievedSearchFunctionsReady}
+          highlightDatabase={false}
           query={query}
           darkMode={true}
-          isActive={retrievalActive}
         />
       }
       middleWrapper={{
-        className: "h-full items-end flex"
+        className: "h-full flex"
       }}
       rightWrapper={{
         style: { width: "200px" }

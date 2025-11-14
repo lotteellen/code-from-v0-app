@@ -1,7 +1,7 @@
 import { MailIcon } from "lucide-react"
-import { Document } from "./helpers/document"
-import { DummyLine, DummyParagraph } from "./helpers/dummy-helpers"
-import "../graphics/helpers/globals.css"
+import { Document } from "../helpers/document"
+import { DummyLine, DummyParagraph } from "../helpers/dummy-helpers"
+import "../helpers/globals.css"
 
 export function EmailCard() {
   const emailContent = (

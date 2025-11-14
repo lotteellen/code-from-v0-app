@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback, useRef } from "react"
 import { Button } from "@/components/ui/button"
-import "../graphics/helpers/globals.css"
+import { DATABASE_SEARCH_TIMINGS } from "../helpers/animation-timings"
+import "../helpers/globals.css"
 
 const SearchIcon = ({ isSearching }: { isSearching?: boolean }) => (
   <svg 
@@ -99,7 +100,7 @@ export function DatabaseSearchCard({
   width?: string;
   onActionButtons?: (buttons: React.ReactNode) => void;
   onFunctionsReady?: (functions: {
-    addText: () => void;
+    addText: (text?: string) => void;
     removeHighlight: () => void;
     search: () => void;
     highlightEnterprise: () => void;
@@ -125,9 +126,12 @@ export function DatabaseSearchCard({
     displayedTextRef.current = displayedText
   }, [displayedText])
 
-  const handleAddText = useCallback(() => {
-    setDisplayedText(message)
-    displayedTextRef.current = message
+  const handleAddText = useCallback((text?: string) => {
+    const textToDisplay = text !== undefined ? text : message
+    setDisplayedText(textToDisplay)
+    displayedTextRef.current = textToDisplay
+    // Set highlighted to true so text appears blue on enter
+    setHighlighted(true)
   }, [message])
 
   const handleHighlight = useCallback(() => {
@@ -169,10 +173,10 @@ export function DatabaseSearchCard({
     if (!displayedTextRef.current) return
     
     setIsSearching(true)
-    // Simulate search duration - you can adjust this
+    // Simulate search duration
     setTimeout(() => {
       setIsSearching(false)
-    }, 2000)
+    }, DATABASE_SEARCH_TIMINGS.SEARCH_ANIMATION_DURATION_MS)
   }, [])
 
   const handleReset = useCallback(() => {
@@ -268,7 +272,7 @@ export function DatabaseSearchCard({
             minWidth: "196px"
           }}>
             <SearchIcon isSearching={isSearching} />
-            <span className={`styling-text overflow-hidden whitespace-nowrap text-ellipsis flex-1 line-height-1 ${highlighted ? "text-focus-active" : ""} ${isSearching ? "text-pulse" : ""}`} style={{ position: "relative", display: "inline-block" }}>
+            <span className={`styling-text overflow-hidden whitespace-nowrap text-ellipsis line-height-1 ${highlighted ? "text-focus-active" : ""} ${isSearching ? "text-pulse" : ""}`} style={{ position: "relative", display: "inline-block", marginRight: "12px" }}>
               {(highlightEnterprise || highlightPricing || highlightSMB) && displayedText ? (
                 <span style={{ position: "relative", zIndex: 1 }}>
                   {displayedText.split(/(enterprise|pricing|SMB)/i).map((part, index) => {
@@ -301,7 +305,9 @@ export function DatabaseSearchCard({
                 <span style={{ position: "relative", zIndex: 1 }}>{displayedText}</span>
               )}
             </span>
-            <ChevronRightIcon isSearching={isSearching} />
+            <div className="absolute right-[6px] top-1/2 -translate-y-1/2">
+              <ChevronRightIcon isSearching={isSearching} />
+            </div>
           </div>
         </div>
       </div>
@@ -317,7 +323,7 @@ export function DatabaseSearchCard({
     if (onActionButtonsRef.current) {
       const buttons = (
         <div className="flex flex-row gap-2">
-          <Button onClick={handleAddText} size="sm">
+          <Button onClick={() => handleAddText()} size="sm">
             Add Text
           </Button>
           <Button onClick={handleHighlight} size="sm">

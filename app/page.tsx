@@ -1,18 +1,19 @@
 "use client"
 
 import { useState, useCallback } from "react"
-import { DocumentVariants } from "@/components/graphics/document-variants"
-import { SpreadsheetCard } from "@/components/graphics/spreadsheet-card"
-import { EmailCard } from "@/components/graphics/email-card"
-import { ChatGPTCard } from "@/components/graphics/chatgpt-card"
-import { PostRequestCard } from "@/components/graphics/post-request-card"
-import { ReasoningModelCard } from "@/components/graphics/reasoning-model-card"
-import { DatabaseSearchCard } from "@/components/graphics/database-search-card"
-import { RetrievedSearchCard } from "@/components/graphics/retrieved-search-card"
-import { RAGCard } from "@/components/graphics/rag-card"
+import { DocumentVariants } from "@/components/graphics/elements/document-variants"
+import { SpreadsheetCard } from "@/components/graphics/elements/spreadsheet-card"
+import { EmailCard } from "@/components/graphics/elements/email-card"
+import { AIChatCard } from "@/components/graphics/elements/AI-chat"
+import { PostRequestCard } from "@/components/graphics/elements/post-request-card"
+import { ReasoningModelCard } from "@/components/graphics/elements/reasoning-model-card"
+import { DatabaseSearchCard } from "@/components/graphics/elements/database-search-card"
+import { RetrievedSearchCard } from "@/components/graphics/elements/retrieved-search-card"
+import { RAGPipelineCard } from "@/components/graphics/rag-card"
+import { SIDPipelineCard } from "@/components/graphics/sid-pipeline-card"
 import { Button } from "@/components/ui/button"
 
-type ViewType = "documents" | "chatgpt" | "database" | "post-request" | "reasoning" | "retrieved-search" | "rag"
+type ViewType = "documents" | "chatgpt" | "database" | "post-request" | "reasoning" | "retrieved-search" | "rag" | "sid-pipeline"
 
 export default function Home() {
   const [view, setView] = useState<ViewType>("documents")
@@ -64,13 +65,13 @@ export default function Home() {
           <>
             <div className="grid grid-cols-2 gap-4 justify-items-center">
               <div style={{ width: "200px" }}>
-                <ChatGPTCard 
+                <AIChatCard 
                   isCorrect={true}
                   onActionButtons={handleChatGPTCorrectButtons} 
                 />
               </div>
               <div style={{ width: "200px" }}>
-                <ChatGPTCard 
+                <AIChatCard 
                   isCorrect={false}
                   onActionButtons={handleChatGPTIncorrectButtons} 
                 />
@@ -185,7 +186,13 @@ export default function Home() {
       case "rag":
         return (
           <div style={{ width: "100%" }}>
-            <RAGCard onActionButtons={setActionButtons} />
+            <RAGPipelineCard onActionButtons={setActionButtons} />
+          </div>
+        )
+      case "sid-pipeline":
+        return (
+          <div style={{ width: "100%" }}>
+            <SIDPipelineCard onActionButtons={setActionButtons} />
           </div>
         )
       case "database":
@@ -330,6 +337,13 @@ export default function Home() {
             size="sm"
           >
             RAG
+          </Button>
+          <Button 
+            onClick={() => { setView("sid-pipeline"); setActionButtons(null); setVersionButtons(new Map()) }} 
+            variant={view === "sid-pipeline" ? "default" : "outline"}
+            size="sm"
+          >
+            SID Pipeline
           </Button>
         </div>
 

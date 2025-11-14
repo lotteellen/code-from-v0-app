@@ -3,10 +3,10 @@ import "./globals.css"
 
 // overwrite vertial padding to padding
 
-export function BrowserWindow({ title, content, menu = true, fitContent = false}: { title?: string; content?: React.ReactNode; menu?: boolean; fitContent?: boolean }) {
+export function BrowserWindow({ title, content, menu = true, fitContent = false, pulsate = false}: { title?: string; content?: React.ReactNode; menu?: boolean; fitContent?: boolean; pulsate?: boolean }) {
   const heightClass = fitContent ? "h-fit" : "h-[150px]"
   return (
-    <div className={`document-outer ${heightClass}`}>
+    <div className={`document-outer ${heightClass} ${pulsate ? 'browser-window-pulsate' : ''}`}>
         <div className="styling-outer document">
           <div className="h-full overflow-hidden flex flex-col">
           

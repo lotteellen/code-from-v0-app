@@ -2,25 +2,30 @@
 
 import React, { useState, useEffect, useCallback } from "react"
 import { ChevronRightIcon, Check, X } from "lucide-react";
-import { BrowserWindow } from "./helpers/browser-window"
-import { DummyLine, DummyParagraph } from "./helpers/dummy-helpers"
+import { BrowserWindow } from "../helpers/browser-window"
+import { DummyLine, DummyParagraph } from "../helpers/dummy-helpers"
 import { Button } from "@/components/ui/button"
-import "./helpers/globals.css"
+import { AI_CHAT_TIMINGS } from "../helpers/animation-timings"
+import "../helpers/globals.css"
 
-const firstLine: string = "What was our enterprise pricing"
-const secondLine: string = "before we pivoted to SMB?"
+const DEFAULT_FIRST_LINE: string = "What was our enterprise pricing"
+const DEFAULT_SECOND_LINE: string = "before we pivoted to SMB?"
 
 
 export const userMessage = ({
   highlightLine1 = false,
   highlightLine2 = false,
   animate = false,
-  style
+  style,
+  firstLine = DEFAULT_FIRST_LINE,
+  secondLine = DEFAULT_SECOND_LINE,
 }: { 
   highlightLine1?: boolean;
   highlightLine2?: boolean;
   animate?: boolean;
-  style?: React.CSSProperties 
+  style?: React.CSSProperties;
+  firstLine?: string;
+  secondLine?: string;
 }) => {
   return (
     <div className={`w-full flex justify-between pt-[var(--padding)] ${animate ? 'user-message-animate' : ''}`} style={style}>
@@ -57,12 +62,15 @@ export const userMessage = ({
   )
 }
 
-export function ChatGPTCard({ 
+export function AIChatCard({ 
   title = "AI Chat", 
   answer,
   onActionButtons,
   isCorrect = true,
   onFunctionsReady,
+  width = "200px",
+  query,
+  isActive = true,
 }: { 
   title?: string; 
   answer?: string; 
@@ -74,7 +82,35 @@ export function ChatGPTCard({
     animateAssistantMessage: () => Promise<void>;
     reset: () => void;
   }) => void;
+  width?: string;
+  query?: string;
+  isActive?: boolean;
 }) {
+  // Parse query into two lines if provided, otherwise use defaults
+  // Try to split at natural break points (after "pricing", "before", etc.)
+  const getQueryLines = (queryText: string): [string, string] => {
+    const words = queryText.split(/\s+/);
+    const midPoint = Math.ceil(words.length / 2);
+    
+    // Try to find a natural break point near the middle
+    const breakWords = ['before', 'after', 'when', 'where', 'how', 'why'];
+    let splitIndex = midPoint;
+    
+    for (let i = Math.max(0, midPoint - 3); i < Math.min(words.length, midPoint + 3); i++) {
+      if (breakWords.some(bw => words[i].toLowerCase() === bw.toLowerCase())) {
+        splitIndex = i;
+        break;
+      }
+    }
+    
+    const firstLine = words.slice(0, splitIndex).join(' ');
+    const secondLine = words.slice(splitIndex).join(' ');
+    return [firstLine, secondLine];
+  };
+  
+  const [firstLine, secondLine] = query 
+    ? getQueryLines(query)
+    : [DEFAULT_FIRST_LINE, DEFAULT_SECOND_LINE];
   // Determine answer based on isCorrect if answer prop is not provided
   const displayAnswer = answer ?? (isCorrect ? "$99/month/seat + $500 setup" : "$499 / month / seat");
   const [highlightLine1, setHighlightLine1] = useState(false)
@@ -179,22 +215,29 @@ export function ChatGPTCard({
 
       setIsUserAnimating(true)
       setUserMessageAnimate(false)
-      setShowUserMessage(true)
+      setShowUserMessage(false) // Keep message hidden during delay
       setHighlightLine1(false)
       setHighlightLine2(false)
       
-      // Animate user message fade in from below
-      setUserMessageAnimate(true)
+      // Wait for initial delay before starting animation
+      const startDelayTimeout = setTimeout(() => {
+        // Show message and start animation
+        setShowUserMessage(true)
+        // Animate user message fade in from below
+        setUserMessageAnimate(true)
+        
+        // Wait for animation to complete, then highlight both lines
+        const animationTimeout = setTimeout(() => {
+          setHighlightLine1(true)
+          setHighlightLine2(true)
+          setIsUserAnimating(false)
+          resolve()
+        }, AI_CHAT_TIMINGS.USER_MESSAGE_ANIMATION_MS)
+        
+        userTimeoutsRef.current.push(animationTimeout)
+      }, AI_CHAT_TIMINGS.USER_MESSAGE_START_DELAY_MS)
       
-      // Wait for animation to complete (500ms), then highlight both lines
-      const timeout1 = setTimeout(() => {
-        setHighlightLine1(true)
-        setHighlightLine2(true)
-        setIsUserAnimating(false)
-        resolve()
-      }, 500) // Duration of user message animation
-      
-      userTimeoutsRef.current = [timeout1]
+      userTimeoutsRef.current = [startDelayTimeout]
     })
   }, [isUserAnimating])
 
@@ -241,19 +284,19 @@ export function ChatGPTCard({
       // Start revealing assistant lines sequentially
       const timeout1 = setTimeout(() => {
         setRevealLine1(true)
-      }, 0) // Start immediately
+      }, AI_CHAT_TIMINGS.ASSISTANT_LINE_1_DELAY_MS)
       
       const timeout2 = setTimeout(() => {
         setRevealLine2(true)
-      }, 600) // After line1 reveal completes
+      }, AI_CHAT_TIMINGS.ASSISTANT_LINE_2_DELAY_MS)
       
       const timeout3 = setTimeout(() => {
         setRevealAnswer(true)
-      }, 600 + 600) // After line2 reveal completes
+      }, AI_CHAT_TIMINGS.ASSISTANT_ANSWER_DELAY_MS)
       
       const timeout4 = setTimeout(() => {
         setRevealLine3(true)
-      }, 600 + 600 + 600) // After answer reveal completes
+      }, AI_CHAT_TIMINGS.ASSISTANT_LINE_3_DELAY_MS)
       
       // Wait for line3 animation to complete before showing indicator
       const timeout5 = setTimeout(() => {
@@ -267,11 +310,11 @@ export function ChatGPTCard({
           const completeTimeout = setTimeout(() => {
             setIsIndicatorAnimating(false)
             resolve()
-          }, 600) // Duration of indicator animation
+          }, AI_CHAT_TIMINGS.INDICATOR_DURATION_MS)
           indicatorTimeoutRef.current = completeTimeout
         }, 0)
         indicatorTimeoutRef.current = indicatorTimeout
-      }, 600 + 600 + 600 + 600) // After line3 reveal animation completes (600ms after line3 starts)
+      }, AI_CHAT_TIMINGS.INDICATOR_START_DELAY_MS)
       
       assistantTimeoutsRef.current = [timeout1, timeout2, timeout3, timeout4, timeout5]
     })
@@ -313,6 +356,8 @@ export function ChatGPTCard({
           highlightLine1: highlightLine1,
           highlightLine2: highlightLine2,
           animate: userMessageAnimate,
+          firstLine,
+          secondLine,
         })}
       </div>
       <div className="w-full px-10">
@@ -406,7 +451,7 @@ export function ChatGPTCard({
   }, [isUserAnimating, isAssistantAnimating, animateUserMessage, unhighlightLines, animateAssistantMessage, resetAll])
 
   return (
-    <div className="relative" style={{ width: "100%" }}>
+    <div className="relative" style={{ width: width, opacity: isActive ? 1 : "var(--inactive)" }}>
       <BrowserWindow title={title} content={content} />
       {showIndicator && (
         <div 

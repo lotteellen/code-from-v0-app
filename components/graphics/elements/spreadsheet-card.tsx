@@ -1,5 +1,5 @@
-import { Document } from "./helpers/document"
-import "../graphics/helpers/globals.css"
+import { Document } from "../helpers/document"
+import "../helpers/globals.css"
 
 export function SpreadsheetCard() {
   const rows = [
