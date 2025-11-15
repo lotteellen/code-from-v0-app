@@ -118,10 +118,15 @@ export function RetrievedSearchCard({
     timeoutRefsRef.current.forEach(timeout => clearTimeout(timeout))
     timeoutRefsRef.current = []
     
-    // Reset document visibility using hook
-    resetDocumentAnimation()
+    // Reset document visibility
+    const visibility: Record<string, boolean> = {}
+    documents.forEach(doc => {
+      visibility[doc.id] = false
+    })
+    setDocumentVisibility(visibility)
     setInternalHighlightDocuments(false)
     setDocumentHighlightLines({})
+    isDoneRef.current = false
     
     // Reset database
     const functions = databaseFunctionsRef.current
@@ -132,7 +137,7 @@ export function RetrievedSearchCard({
     // Reset processed ref
     finalStateProcessedRef.current = false
     setFinalStateType(null)
-  }, [resetDocumentAnimation])
+  }, [documents])
 
   // Set final state - consolidated logic for both highlighted and unhighlighted
   useLayoutEffect(() => {
@@ -142,15 +147,17 @@ export function RetrievedSearchCard({
 
     if (shouldShowHighlighted || shouldShowUnhighlighted) {
       // Show all documents immediately
+      const visibility: Record<string, boolean> = {}
       const highlightLines: Record<string, number[]> = {}
       
       documents.forEach(doc => {
+        visibility[doc.id] = true
         if (shouldShowHighlighted && doc.highlightLines) {
           highlightLines[doc.id] = [...doc.highlightLines]
         }
       })
       
-      setAllDocumentsVisible()
+      setDocumentVisibility(visibility)
       setDocumentHighlightLines(shouldShowHighlighted ? highlightLines : {})
       setInternalHighlightDocuments(shouldShowHighlighted)
       
@@ -167,13 +174,14 @@ export function RetrievedSearchCard({
         }
       }
       
+      isDoneRef.current = true
       finalStateProcessedRef.current = true
     } else if (shouldReset) {
       // Reset to initial state
       finalStateProcessedRef.current = false
       resetToInitial()
     }
-  }, [isFinalHighlighted, isFinalUnhighlighted, isInFinalState, currentQuery, highlightDatabase, documents, resetToInitial, setAllDocumentsVisible])
+  }, [isFinalHighlighted, isFinalUnhighlighted, isInFinalState, currentQuery, highlightDatabase, documents, resetToInitial])
 
   // Keep ref in sync with prop
   useEffect(() => {
@@ -386,14 +394,24 @@ export function RetrievedSearchCard({
         return
       }
 
-      // Clear any existing timeouts (for non-document timeouts)
+      // Reset isDone if it was previously set
+      if (isDoneRef.current) {
+        isDoneRef.current = false
+      }
+
+      // Clear any existing timeouts
       timeoutRefsRef.current.forEach(timeout => clearTimeout(timeout))
       timeoutRefsRef.current = []
 
       // Force remount of documents by incrementing reset key
       setResetKey(prev => prev + 1)
 
-      // Reset highlight states
+      // Reset document visibility
+      const visibility: Record<string, boolean> = {}
+      documents.forEach(doc => {
+        visibility[doc.id] = false
+      })
+      setDocumentVisibility(visibility)
       setInternalHighlightDocuments(false)
       setDocumentHighlightLines({})
 
@@ -406,12 +424,42 @@ export function RetrievedSearchCard({
         functions.slowSearch()
       }
       
-      // Trigger document appear animation using the hook
-      triggerDocumentAnimation(isQuick).then(() => {
-        resolve()
+      // Documents appear from left to right in order
+      // Space them out evenly over the total time window
+      const resetDelay = RETRIEVED_SEARCH_TIMINGS.DOCUMENT_RESET_DELAY_MS
+      // Quick search uses shorter time window, slow search uses full time window
+      const totalTimeWindow = isQuick 
+        ? RETRIEVED_SEARCH_TIMINGS.DOCUMENT_TOTAL_TIME_WINDOW_MS * 0.4 // 40% of slow time
+        : RETRIEVED_SEARCH_TIMINGS.DOCUMENT_TOTAL_TIME_WINDOW_MS
+      const delayBetweenDocuments = documents.length > 1 
+        ? totalTimeWindow / (documents.length - 1)
+        : 0
+
+      documents.forEach((doc, index) => {
+        const delay = resetDelay + (index * delayBetweenDocuments)
+        const timeout = setTimeout(() => {
+          setDocumentVisibility(prev => ({ ...prev, [doc.id]: true }))
+        }, delay)
+        timeoutRefsRef.current.push(timeout)
       })
+
+      // Resolve after search animation completes
+      const maxDelay = isQuick 
+        ? RETRIEVED_SEARCH_TIMINGS.DOCUMENT_SEARCH_COMPLETION_MS * 0.5 // Faster for quick search
+        : RETRIEVED_SEARCH_TIMINGS.DOCUMENT_SEARCH_COMPLETION_MS
+      const resolveTimeout = setTimeout(() => {
+        // Force all documents visible as backup
+        const allVisible: Record<string, boolean> = {}
+        documents.forEach(doc => {
+          allVisible[doc.id] = true
+        })
+        setDocumentVisibility(allVisible)
+        isDoneRef.current = true
+        resolve()
+      }, maxDelay)
+      timeoutRefsRef.current.push(resolveTimeout)
     })
-  }, [documents, triggerDocumentAnimation])
+  }, [documents])
 
   // Button 2: Quick search (faster search animation, no highlights)
   const handleQuickSearch = useCallback((): Promise<void> => {
@@ -480,11 +528,14 @@ export function RetrievedSearchCard({
     
     // Force remount of documents by incrementing reset key
     setResetKey(prev => prev + 1)
-    
-    // Reset document visibility using hook
-    resetDocumentAnimation()
+    const visibility: Record<string, boolean> = {}
+    documents.forEach(doc => {
+      visibility[doc.id] = false
+    })
+    setDocumentVisibility(visibility)
     setInternalHighlightDocuments(false)
     setDocumentHighlightLines({})
+    isDoneRef.current = false
     finalStateProcessedRef.current = false
     setFinalStateType(null)
     
@@ -496,7 +547,7 @@ export function RetrievedSearchCard({
       // If we control it internally and it's true, reset it
       setInternalShowFinal(false)
     }
-  }, [documents, onToggleFinal, effectiveShowFinal, query, internalShowFinal, resetDocumentAnimation])
+  }, [documents, onToggleFinal, effectiveShowFinal, query, internalShowFinal])
   
   // Toggle final state with highlights
   const handleToggleFinal = useCallback(() => {
@@ -565,15 +616,15 @@ export function RetrievedSearchCard({
         <Button onClick={() => handleSlowSearchAndHighlight()} size="sm">
           Slow Search + Highlight
         </Button>
-        <Button onClick={handleToggleFinal} size="sm" variant={isFinalHighlighted ? "default" : "outline"}>
-          {isFinalHighlighted ? "Initial" : "Final (Highlighted)"}
+        <Button onClick={handleToggleFinal} size="sm" variant={effectiveShowFinal ? "default" : "outline"}>
+          {effectiveShowFinal ? "Initial" : "Final (Highlighted)"}
         </Button>
         <Button onClick={handleToggleFinalUnhighlighted} size="sm" variant={isFinalUnhighlighted ? "default" : "outline"}>
           {isFinalUnhighlighted ? "Initial" : "Final (Unhighlighted)"}
         </Button>
       </div>
     )
-  }, [handleAddTextAndRemoveHighlight, handleQuickSearch, handleSlowSearchAndHighlight, handleToggleFinal, handleToggleFinalUnhighlighted, isFinalHighlighted, isFinalUnhighlighted])
+  }, [handleAddTextAndRemoveHighlight, handleQuickSearch, handleSlowSearchAndHighlight, handleToggleFinal, handleToggleFinalUnhighlighted, effectiveShowFinal, isFinalUnhighlighted])
 
   // Update action buttons when effectiveShowFinal changes or when callback becomes available
   // Use refs to prevent infinite loops by tracking what we've already notified

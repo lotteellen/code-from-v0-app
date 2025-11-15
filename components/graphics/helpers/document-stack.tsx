@@ -44,7 +44,6 @@ export interface DocumentStackProps {
 
 export function DocumentStack({ documents, animateContext, showFinal = false }: DocumentStackProps) {
   const containerRef = useRef<HTMLDivElement>(null)
-  const [dimensions, setDimensions] = useState({ width: 1000, height: 1000, offsetX: 0, offsetY: 0 })
   
   const stackStyle = [
     { rotate: '0deg', bottom: -56, left: -45 },    // bullets (leftmost, behind) - messy
@@ -74,59 +73,6 @@ export function DocumentStack({ documents, animateContext, showFinal = false }: 
   
   const totalDocuments = stackStyle.length
 
-  // Measure the actual bounding box of all absolutely positioned children
-  useEffect(() => {
-    if (!containerRef.current) return
-
-    const container = containerRef.current
-    const children = Array.from(container.children) as HTMLElement[]
-    
-    if (children.length === 0) return
-
-    // Force a reflow to ensure layout is updated
-    void container.offsetHeight
-
-    let minLeft = Infinity
-    let maxRight = -Infinity
-    let minTop = Infinity
-    let maxBottom = -Infinity
-
-    children.forEach(child => {
-      const rect = child.getBoundingClientRect()
-      const containerRect = container.getBoundingClientRect()
-      
-      // Convert to container-relative coordinates
-      const left = rect.left - containerRect.left
-      const right = rect.right - containerRect.left
-      const top = rect.top - containerRect.top
-      const bottom = rect.bottom - containerRect.top
-
-      minLeft = Math.min(minLeft, left)
-      maxRight = Math.max(maxRight, right)
-      minTop = Math.min(minTop, top)
-      maxBottom = Math.max(maxBottom, bottom)
-    })
-
-    const width = maxRight - minLeft
-    const height = maxBottom - minTop
-    
-    // Minimal padding to prevent clipping (reduced from 10px to 2px)
-    const padding = 2
-    const finalWidth = Math.max(width + padding * 2, 250)
-    const finalHeight = Math.max(height + padding * 2, 150)
-    
-    // Calculate offset to center content within container
-    const offsetX = padding - minLeft
-    const offsetY = padding - minTop
-
-    setDimensions({
-      width: finalWidth,
-      height: finalHeight,
-      offsetX,
-      offsetY,
-    })
-  }, [documents, showFinal, animateContext])
-
   return (
     //  All on top of each other in a stack
     <div 
@@ -134,11 +80,10 @@ export function DocumentStack({ documents, animateContext, showFinal = false }: 
       className={documentStackClassName} 
       style={{
         ...documentStackStyle,
-        width: `${dimensions.width}px`,
-        height: `${dimensions.height}px`,
-        paddingLeft: `${dimensions.offsetX}px`,
-        paddingTop: `${dimensions.offsetY}px`,
+        width: '200px',
+        height: '80px',
         margin: '0 auto',
+        overflow: 'visible',
       }}
     >
       {stackStyle.map((style, index) => {
