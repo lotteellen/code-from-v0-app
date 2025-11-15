@@ -11,21 +11,37 @@ export function Section({ title, children, borderTop = true }: { title?: string;
   )
 }
 
-export function Checkbox({ checked }: { checked: boolean }) {
+// Shared icon wrapper styles
+const iconWrapperStyle: React.CSSProperties = {
+  width: "6px",
+  height: "6px",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  flexShrink: 0,
+  boxSizing: "border-box",
+}
+
+// Shared SVG props for Search and Document icons
+const svgIconProps = {
+  width: "5.5",
+  height: "5.5",
+  fill: "none" as const,
+  stroke: "#9CA3AF",
+  strokeWidth: "2",
+  strokeLinecap: "round" as const,
+  strokeLinejoin: "round" as const,
+}
+
+export function Checkbox({ checked, showFinal = false }: { checked: boolean; showFinal?: boolean }) {
   return (
     <div
       style={{
-        width: "6px",
-        height: "6px",
+        ...iconWrapperStyle,
         borderRadius: "999px",
         background: checked ? "var(--traffic-light-green)" : "transparent",
         border: checked ? "none" : "0.5px solid var(--medium-grey)",
-        flexShrink: 0,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        transition: "all 0.2s ease",
-        boxSizing: "border-box",
+        transition: showFinal ? "none" : "all 0.2s ease",
       }}
     >
       {checked && (
@@ -43,29 +59,10 @@ export function Checkbox({ checked }: { checked: boolean }) {
   )
 }
 
-const iconProps = {
-  width: "6",
-  height: "6",
-  fill: "none",
-  stroke: "#9CA3AF",
-  strokeWidth: "2",
-  strokeLinecap: "round" as const,
-  strokeLinejoin: "round" as const,
-  style: { flexShrink: 0 } as React.CSSProperties,
-}
-
 export function Search() {
   return (
-    <div style={{ 
-      width: "6px", 
-      height: "6px", 
-      display: "flex", 
-      alignItems: "center", 
-      justifyContent: "center",
-      flexShrink: 0,
-      boxSizing: "border-box",
-    }}>
-      <svg {...iconProps} width="5.5" height="5.5" viewBox="2 2 21 21">
+    <div style={iconWrapperStyle}>
+      <svg {...svgIconProps} viewBox="2 2 21 21">
         <circle cx="11" cy="11" r="7" />
         <path d="m16 16 6 6" strokeWidth="2.5" />
       </svg>
@@ -75,16 +72,8 @@ export function Search() {
 
 export function Document() {
   return (
-    <div style={{ 
-      width: "6px", 
-      height: "6px", 
-      display: "flex", 
-      alignItems: "center", 
-      justifyContent: "center",
-      flexShrink: 0,
-      boxSizing: "border-box",
-    }}>
-      <svg {...iconProps} width="5.5" height="5.5" viewBox="0 0 24 24">
+    <div style={iconWrapperStyle}>
+      <svg {...svgIconProps} viewBox="0 0 24 24">
         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
         <path d="M14 2v6h6" />
       </svg>
@@ -94,20 +83,7 @@ export function Document() {
 
 export function Answer() {
   return (
-    <div
-      style={{
-        width: "6px",
-        height: "6px",
-        borderRadius: "999px",
-        background: "white",
-        border: "none",
-        flexShrink: 0,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        boxSizing: "border-box",
-      }}
-    >
+    <div style={{ ...iconWrapperStyle, borderRadius: "999px", background: "white", border: "none" }}>
       <svg width="5" height="5" viewBox="0 0 22 22" fill="none">
         <path
           d="M 4 11 L 9 16 L 18 7"
@@ -125,17 +101,11 @@ export function Spinner() {
   return (
     <div
       style={{
-        width: "6px",
-        height: "6px",
+        ...iconWrapperStyle,
         borderRadius: "999px",
         background: "transparent",
         border: "0.5px solid var(--medium-grey)",
-        flexShrink: 0,
         animation: "spinner 2s ease-in-out infinite",
-        boxSizing: "border-box",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
       }}
     />
   )
@@ -143,21 +113,7 @@ export function Spinner() {
 
 export function Plus() {
   return (
-    <div
-      style={{
-        width: "6px",
-        height: "6px",
-        borderRadius: "999px",
-        background: "var(--medium-grey)",
-        border: "none",
-        flexShrink: 0,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        transition: "all 0.2s ease",
-        boxSizing: "border-box",
-      }}
-    >
+    <div style={{ ...iconWrapperStyle, borderRadius: "999px", background: "var(--medium-grey)", border: "none" }}>
       <svg width="4" height="4" viewBox="0 0 12 12" fill="none">
         <path
           d="M 6 2 L 6 10 M 2 6 L 10 6"

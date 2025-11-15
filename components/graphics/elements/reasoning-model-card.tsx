@@ -69,6 +69,7 @@ export const AnswerSection = ({ borderTop, animatedText, animatedLines, showText
           className="styling-text font-bold w-[92px] h-[var(--line-height-big)] pl-[1px] overflow-visible answer-text flex items-center" 
           style={{ 
             color: "var(--traffic-light-green)", 
+            fontWeight: "700",
             position: isTransitioning ? "absolute" : (showText ? "absolute" : "relative"),
             top: (isTransitioning || showText) ? "-1px" : undefined,
             left: (isTransitioning || showText) ? 0 : undefined,
@@ -98,14 +99,7 @@ export const AnswerSection = ({ borderTop, animatedText, animatedLines, showText
   )
 }
 
-export const answerSection = () => (
-  <AnswerSection borderTop={false} showText={true} />
-) 
-
 type StepState = "pending" | "active" | "updating" | "retrieving" | "answering" | "completed"
-type Phase = "active" | "updating" | "retrieving" | "answering" | "completed"
-
-const PHASES: Phase[] = ["active", "updating", "retrieving", "answering", "completed"]
 
 type StepData = {
   question: string
@@ -270,8 +264,11 @@ function renderTextWithBoldNewParts(fullText: string, newTextParts: string[], pr
   )
 }
 
-function Step({ step, state, shouldShow, isNewlyAdded = false, onTypingStart }: { step: StepData; state: StepState; shouldShow: boolean; isNewlyAdded?: boolean; onTypingStart?: () => void }) {
+function Step({ step, state, shouldShow, isNewlyAdded = false, onTypingStart, showFinal = false }: { step: StepData; state: StepState; shouldShow: boolean; isNewlyAdded?: boolean; onTypingStart?: () => void; showFinal?: boolean }) {
   if (!shouldShow) return null
+
+  // When showFinal is true, always treat state as "completed" for rendering
+  const effectiveState: StepState = showFinal ? "completed" : state
 
   const [animatedText, setAnimatedText] = useState<string>(isNewlyAdded ? "" : "")
   const [isAnimating, setIsAnimating] = useState<boolean>(isNewlyAdded)
@@ -282,12 +279,70 @@ function Step({ step, state, shouldShow, isNewlyAdded = false, onTypingStart }: 
   const [finalSuffix, setFinalSuffix] = useState<string>("")
   const [newTextParts, setNewTextParts] = useState<string[]>([]) // Track parts of text that are newly typed
   const animationTimeoutsRef = useRef<NodeJS.Timeout[]>([])
-  const previousStateRef = useRef<StepState>(state)
+  const previousStateRef = useRef<StepState>(effectiveState)
   const [statusAnimationClass, setStatusAnimationClass] = useState<string>("")
   const hasTypedNewTaskRef = useRef<boolean>(false)
 
+  // When showFinal is true, immediately set newTextParts for bold formatting
+  useEffect(() => {
+    if (showFinal && step.updated_question && effectiveState === "completed") {
+      const oldText = step.question || ""
+      const newTextPlain = stripFormatting(step.updated_question)
+      
+      // If oldText is empty (newly added task), show entire updated question in bold
+      if (!oldText) {
+        setAnimatedText(newTextPlain)
+        setNewTextParts([newTextPlain])
+        setIsAnimating(false)
+        return
+      }
+      
+      // Find common prefix and suffix
+      const commonPrefixLength = findCommonPrefix(oldText, newTextPlain)
+      const commonSuffixLength = findCommonSuffix(oldText, newTextPlain)
+      
+      const prefix = oldText.slice(0, commonPrefixLength)
+      const suffix = oldText.slice(oldText.length - commonSuffixLength)
+      const oldMiddle = oldText.slice(commonPrefixLength, oldText.length - commonSuffixLength)
+      const newMiddle = newTextPlain.slice(commonPrefixLength, newTextPlain.length - commonSuffixLength)
+
+      // Determine what parts are new
+      let wordToHighlight = oldMiddle
+      let firstPartToType = ""
+      let secondPartToType = ""
+      
+      if (oldMiddle.includes(" ") && newMiddle.startsWith(oldMiddle.split(" ")[0])) {
+        const firstOldWord = oldMiddle.split(" ")[0]
+        wordToHighlight = firstOldWord
+        const remainingNew = newMiddle.slice(firstOldWord.length)
+        secondPartToType = remainingNew
+      } else if (oldText === "When did they pivot?" && newTextPlain === "When did Tomato pivot to SMB?") {
+        wordToHighlight = "they"
+        firstPartToType = "Tomato"
+        secondPartToType = " to SMB"
+      } else {
+        firstPartToType = newMiddle
+      }
+
+      // Set the parts that should be bold
+      const parts: string[] = []
+      if (firstPartToType) parts.push(firstPartToType)
+      if (secondPartToType) parts.push(secondPartToType)
+      setNewTextParts(parts)
+      
+      // Set animatedText to the final updated question
+      setAnimatedText(newTextPlain)
+      setIsAnimating(false)
+    }
+  }, [showFinal, step.updated_question, step.question, effectiveState])
+
   // Handle text animation when state changes to "updating"
   useEffect(() => {
+    // Skip animations when showFinal is true
+    if (showFinal) {
+      return
+    }
+
     // Clear any existing animation timeouts
     animationTimeoutsRef.current.forEach(timeout => clearTimeout(timeout))
     animationTimeoutsRef.current = []
@@ -457,10 +512,15 @@ function Step({ step, state, shouldShow, isNewlyAdded = false, onTypingStart }: 
       animationTimeoutsRef.current.forEach(timeout => clearTimeout(timeout))
       animationTimeoutsRef.current = []
     }
-  }, [state, step.question, step.updated_question])
+  }, [state, step.question, step.updated_question, showFinal])
 
   // Handle typing animation for newly added tasks
   useEffect(() => {
+    // Skip animations when showFinal is true
+    if (showFinal) {
+      return
+    }
+
     if (isNewlyAdded && state === "pending" && !hasTypedNewTaskRef.current) {
       hasTypedNewTaskRef.current = true
       
@@ -490,10 +550,17 @@ function Step({ step, state, shouldShow, isNewlyAdded = false, onTypingStart }: 
         animationTimeoutsRef.current = []
       }
     }
-  }, [isNewlyAdded, state, step.question, onTypingStart])
+  }, [isNewlyAdded, state, step.question, onTypingStart, showFinal])
 
   // Handle status transition animations
   useEffect(() => {
+    // Skip animations when showFinal is true
+    if (showFinal) {
+      setStatusAnimationClass("")
+      previousStateRef.current = effectiveState
+      return
+    }
+
     const previousState = previousStateRef.current
     const shouldAnimate = (prev: StepState, curr: StepState) => {
       // Animate transitions between: retrieving -> answering -> completed
@@ -504,7 +571,7 @@ function Step({ step, state, shouldShow, isNewlyAdded = false, onTypingStart }: 
       )
     }
 
-    if (shouldAnimate(previousState, state)) {
+    if (shouldAnimate(previousState, effectiveState)) {
       // Smooth fade out and in for all transitions
       setStatusAnimationClass("status-fade-in")
       const clearAnimationTimeout = setTimeout(() => {
@@ -515,16 +582,16 @@ function Step({ step, state, shouldShow, isNewlyAdded = false, onTypingStart }: 
       setStatusAnimationClass("")
     }
 
-    previousStateRef.current = state
-  }, [state])
+    previousStateRef.current = effectiveState
+  }, [effectiveState, showFinal])
 
   const displayQuestion = isAnimating 
     ? animatedText
-    : state === "pending" || state === "active" || state === "updating"
+    : effectiveState === "pending" || effectiveState === "active" || effectiveState === "updating"
     ? (animatedText || step.question)
     : (step.updated_question || step.question)
-  const questionIcon: LineIconType = state === "pending" ? "open" : state === "completed" ? "done" : "spinner"
-  const showDetails = state !== "pending" && state !== "active" && state !== "updating"
+  const questionIcon: LineIconType = effectiveState === "pending" ? "open" : effectiveState === "completed" ? "done" : "spinner"
+  const showDetails = effectiveState !== "pending" && effectiveState !== "active" && effectiveState !== "updating"
 
   const statusMessages = {
     active: "",
@@ -534,18 +601,18 @@ function Step({ step, state, shouldShow, isNewlyAdded = false, onTypingStart }: 
     completed: step.answer,
   }
 
-  const statusIconComponent = state === "completed" ? <Answer /> : state === "answering" ? <Document /> : <Search />
+  const statusIconComponent = effectiveState === "completed" ? <Answer /> : effectiveState === "answering" ? <Document /> : <Search />
 
   const leftPart = (
     <div id="left-part" style={{ display: "flex", alignItems: "center", gap: "4px", flex: "1 1 0", minWidth: 0, overflow: "hidden" }}>
       {questionIcon && (
         <div style={{ flexShrink: 0 }}>
-          {isNewlyAdded && state === "pending" ? (
+          {isNewlyAdded && effectiveState === "pending" ? (
             <Plus />
           ) : questionIcon === "open" ? (
-            <Checkbox checked={false} />
+            <Checkbox checked={false} showFinal={showFinal} />
           ) : 
-           questionIcon === "done" ? <Checkbox checked={true} /> : 
+           questionIcon === "done" ? <Checkbox checked={true} showFinal={showFinal} /> : 
            questionIcon === "spinner" ? <Spinner /> : null}
         </div>
       )}
@@ -563,7 +630,7 @@ function Step({ step, state, shouldShow, isNewlyAdded = false, onTypingStart }: 
         ) : (isAnimating && !isHighlighting && newTextParts.length > 0) ? (
           // During typing animation (not highlighting), show new text parts in bold
           renderTextWithBoldNewParts(displayQuestion, newTextParts)
-        ) : (state !== "pending" && state !== "active" && step.updated_question && newTextParts.length > 0) ? (
+        ) : (effectiveState !== "pending" && effectiveState !== "active" && step.updated_question && newTextParts.length > 0) ? (
           // After completion, show new text parts in bold
           renderTextWithBoldNewParts(displayQuestion, newTextParts)
         ) : (displayQuestion.includes('~') || displayQuestion.includes('*') ? parseFormattedText(displayQuestion) : displayQuestion)}
@@ -573,16 +640,16 @@ function Step({ step, state, shouldShow, isNewlyAdded = false, onTypingStart }: 
 
   const rightPart = showDetails ? (
     <div id="right-part" style={{ display: "flex", alignItems: "center", gap: "2px", whiteSpace: "nowrap", flexShrink: 0 }}>
-      <div key={`icon-${state}`} className={statusAnimationClass} style={{ flexShrink: 0 }}>
+      <div key={`icon-${effectiveState}`} className={statusAnimationClass} style={{ flexShrink: 0 }}>
         {statusIconComponent}
       </div>
-      {state === "completed" ? (
-        <span key={`text-${state}`} className={`styling-text ${statusAnimationClass}`} style={{ color: "var(--dark-grey)", fontWeight: "500", whiteSpace: "nowrap", flexShrink: 0 }}>
-          {statusMessages[state]}
+      {effectiveState === "completed" ? (
+        <span key={`text-${effectiveState}`} className={`styling-text ${statusAnimationClass}`} style={{ color: "var(--traffic-light-green)", fontWeight: "500", whiteSpace: "nowrap", flexShrink: 0 }}>
+          {statusMessages[effectiveState]}
         </span>
       ) : (
-        <em key={`text-${state}`} className={`styling-text ${state === "retrieving" || state === "answering" ? "text-pulse" : ""} ${statusAnimationClass}`} style={{ color: "var(--dark-grey)", fontStyle: "italic", whiteSpace: "nowrap", flexShrink: 0 }}>
-          {statusMessages[state]}
+        <em key={`text-${effectiveState}`} className={`styling-text ${effectiveState === "retrieving" || effectiveState === "answering" ? "text-pulse" : ""} ${statusAnimationClass}`} style={{ color: "var(--dark-grey)", fontStyle: "italic", whiteSpace: "nowrap", flexShrink: 0 }}>
+          {statusMessages[effectiveState]}
         </em>
       )}
     </div>
@@ -598,47 +665,33 @@ function Step({ step, state, shouldShow, isNewlyAdded = false, onTypingStart }: 
   )
 }
 
-function updateStepState(states: StepState[], index: number, newState: StepState): StepState[] {
-  const newStates = [...states]
-  newStates[index] = newState
-  return newStates
-}
-
-function findNextStepIndex(
-  currentIndex: number,
-  steps: StepData[],
-  stepStates: StepState[]
-): number | null {
-  // Find next available step
-  for (let i = currentIndex + 1; i < steps.length; i++) {
-    if (stepStates[i] === "pending") {
-      return i
-    }
-  }
-  return null
-}
-
 export function ReasoningModelCard({ 
   onActionButtons,
   onRetrievalReady,
   onBeforeQueryText,
   onFunctionsReady,
+  onQuickSearch,
   isActive = true,
-  query = ""
+  query = "",
+  showFinal = false,
+  onFinalQueryChange,
+  onToggleFinal,
 }: { 
   onActionButtons?: (buttons: React.ReactNode) => void;
   onRetrievalReady?: (stepIndex: number, retrievalText: string) => Promise<void>;
   onBeforeQueryText?: () => void | Promise<void>;
-  onFunctionsReady?: (functions: { runSequentialFlow: () => Promise<void>; reset: () => void }) => void;
+  onFunctionsReady?: (functions: { insertQueryText: () => Promise<void>; runRemainingSequence: () => Promise<void>; reset: () => void }) => void;
+  onQuickSearch?: (query: string) => Promise<void>;
   isActive?: boolean;
   query?: string;
+  showFinal?: boolean;
+  onFinalQueryChange?: (finalQuery: string) => void;
+  onToggleFinal?: () => void;
 } = {}) {
   const [steps, setSteps] = useState<StepData[]>(STEP_DATA.steps)
   const [stepStates, setStepStates] = useState<StepState[]>(
     STEP_DATA.steps.map(() => "pending")
   )
-  const [currentStepIndex, setCurrentStepIndex] = useState<number | null>(null)
-  const [currentPhase, setCurrentPhase] = useState<Phase>("active")
   const [showAnswer, setShowAnswer] = useState(false)
   const [showThinking, setShowThinking] = useState(false)
   const [isThinking, setIsThinking] = useState(false)
@@ -664,9 +717,94 @@ export function ReasoningModelCard({
   const onRetrievalReadyRef = useRef(onRetrievalReady)
   const onBeforeQueryTextRef = useRef(onBeforeQueryText)
   const onFunctionsReadyRef = useRef(onFunctionsReady)
+  const onQuickSearchRef = useRef(onQuickSearch)
   const retrievalPromisesRef = useRef<Map<number, Promise<void>>>(new Map())
 
+  // Set final state when showFinal prop is true - use useLayoutEffect to ensure synchronous updates
+  useLayoutEffect(() => {
+    // Stop any running sequential flow when toggling final state
+    if (isRunningSequential && showFinal) {
+      sequentialTimeoutsRef.current.forEach(timeout => clearTimeout(timeout))
+      sequentialTimeoutsRef.current = []
+      setIsRunningSequential(false)
+    }
+    
+    // Clear all timeouts when toggling final state to prevent conflicts
+    if (showFinal) {
+      thinkingTimeoutsRef.current.forEach(timeout => clearTimeout(timeout))
+      thinkingTimeoutsRef.current = []
+      planTimeoutsRef.current.forEach(timeout => clearTimeout(timeout))
+      planTimeoutsRef.current = []
+      startAnsweringTimeoutsRef.current.forEach(timeout => clearTimeout(timeout))
+      startAnsweringTimeoutsRef.current = []
+    }
+    
+    if (showFinal) {
+      // Add the additional task if not already added
+      const finalQueryText = query || "What is the enterprise pricing?"
+      if (!hasAddedTask) {
+        const newTask: StepData = {
+          question: "",
+          updated_question: finalQueryText,
+          answer: "$500 setup",
+          documents_found: 2,
+        }
+        setSteps(prevSteps => {
+          const newSteps = [...prevSteps, newTask]
+          const newIndex = newSteps.length - 1
+          setAddedTaskIndex(newIndex)
+          // Set all steps to completed (including the new task)
+          setStepStates(prevStates => [...prevStates, "completed"])
+          setHasAddedTask(true)
+          setNewTaskTypingStarted(true)
+          // Show all plan steps including the new one
+          setVisiblePlanSteps(new Set([...Array(newSteps.length).keys()]))
+          return newSteps
+        })
+      } else {
+        // Set all steps to completed (including the additional task if it exists)
+        setStepStates(prevStates => {
+          // Ensure all plan steps are visible based on current step states length
+          setVisiblePlanSteps(new Set([...Array(prevStates.length).keys()]))
+          return prevStates.map(() => "completed")
+        })
+      }
+      
+      // Notify parent of final query
+      if (onFinalQueryChange) {
+        onFinalQueryChange(finalQueryText)
+      }
+      
+      // Show answer section
+      setShowAnswer(true)
+      setIsAnswerRevealed(true)
+      setIsAnswerTransitioning(false)
+      setAnimatedAnswerLines([true, true, true])
+      setIsAnsweringComplete(true)
+      // Show thinking and plan sections
+      setShowThinking(true)
+      setShowPlanSection(true)
+      setShowQueryText(true)
+      setIsQueryHighlighted(false)
+      // Set animated lines to show (no animation, just visible)
+      // Don't set animatedLines to true when showFinal - we want them visible but not pulsing
+      setAnimatedLines([false, false, false])
+      setIsThinking(false)
+    } else {
+      // When showFinal becomes false, ensure continue button is hidden
+      setIsWaitingForContinue(false)
+      continueResolversRef.current.clear()
+    }
+  }, [showFinal, hasAddedTask, query, onFinalQueryChange, isRunningSequential])
+
   const handleReset = useCallback(() => {
+    // Stop any running sequential flow first
+    if (isRunningSequential) {
+      sequentialTimeoutsRef.current.forEach(timeout => clearTimeout(timeout))
+      sequentialTimeoutsRef.current = []
+      setIsRunningSequential(false)
+    }
+    
     // Clear all timeouts
     thinkingTimeoutsRef.current.forEach(timeout => clearTimeout(timeout))
     thinkingTimeoutsRef.current = []
@@ -676,6 +814,7 @@ export function ReasoningModelCard({
     startAnsweringTimeoutsRef.current = []
     sequentialTimeoutsRef.current.forEach(timeout => clearTimeout(timeout))
     sequentialTimeoutsRef.current = []
+    
     // Clear retrieval promises and continue resolvers
     retrievalPromisesRef.current.clear()
     continueResolversRef.current.clear()
@@ -683,8 +822,6 @@ export function ReasoningModelCard({
     
     // Reset to initial state - just thinking section, no animations
     setSteps(STEP_DATA.steps)
-    setCurrentStepIndex(null)
-    setCurrentPhase("active")
     setStepStates(STEP_DATA.steps.map(() => "pending"))
     setShowAnswer(false)
     setShowThinking(false)
@@ -703,305 +840,56 @@ export function ReasoningModelCard({
     setShowQueryText(false)
     setIsQueryHighlighted(false)
     setIsRunningSequential(false)
-  }, [])
+  }, [isRunningSequential])
 
   const thinkingTimeoutsRef = useRef<NodeJS.Timeout[]>([])
   const planTimeoutsRef = useRef<NodeJS.Timeout[]>([])
 
-  const handleToggleThinking = useCallback(() => {
-    // Clear any existing timeouts
-    thinkingTimeoutsRef.current.forEach(timeout => clearTimeout(timeout))
-    thinkingTimeoutsRef.current = []
-
-    if (!isThinking) {
-      // Start thinking - show section and animate lines sequentially
-      setShowThinking(true)
-      setIsThinking(true)
-      setAnimatedLines([false, false, false])
-      
-      // Animate first line immediately
-      const timeout1 = setTimeout(() => setAnimatedLines([true, false, false]), REASONING_MODEL_TIMINGS.THINKING_LINE_1_DELAY_MS)
-      thinkingTimeoutsRef.current.push(timeout1)
-      
-      // Animate second line after a split second
-      const timeout2 = setTimeout(() => setAnimatedLines([true, true, false]), REASONING_MODEL_TIMINGS.THINKING_LINE_2_DELAY_MS)
-      thinkingTimeoutsRef.current.push(timeout2)
-      
-      // Animate third line after another split second
-      const timeout3 = setTimeout(() => setAnimatedLines([true, true, true]), REASONING_MODEL_TIMINGS.THINKING_LINE_3_DELAY_MS)
-      thinkingTimeoutsRef.current.push(timeout3)
-    } else {
-      // Stop thinking - clear all animations
-      setIsThinking(false)
-      setAnimatedLines([false, false, false])
-      // Optionally hide the section when stopping
-      // setShowThinking(false)
-    }
-  }, [isThinking])
-
-  const handleToggleStartAnswering = useCallback(() => {
-    // Clear any existing timeouts
-    startAnsweringTimeoutsRef.current.forEach(timeout => clearTimeout(timeout))
-    startAnsweringTimeoutsRef.current = []
-
-    if (!isStartAnswering) {
-      // Start answering - animate lines sequentially
-      setIsStartAnswering(true)
-      setIsAnsweringComplete(false)
-      setIsAnswerRevealed(false)
-      setAnimatedAnswerLines([false, false, false])
-      
-      // Ensure answer section is shown
-      if (!showAnswer) {
-        setShowAnswer(true)
-      }
-      
-      // Animate first line immediately
-      const timeout1 = setTimeout(() => setAnimatedAnswerLines([true, false, false]), REASONING_MODEL_TIMINGS.ANSWER_LINE_1_DELAY_MS)
-      startAnsweringTimeoutsRef.current.push(timeout1)
-      
-      // Animate second line (middle line with text) after a split second
-      const timeout2 = setTimeout(() => setAnimatedAnswerLines([true, true, false]), REASONING_MODEL_TIMINGS.ANSWER_LINE_2_DELAY_MS)
-      startAnsweringTimeoutsRef.current.push(timeout2)
-      
-      // Animate third line after another split second
-      const timeout3 = setTimeout(() => setAnimatedAnswerLines([true, true, true]), REASONING_MODEL_TIMINGS.ANSWER_LINE_3_DELAY_MS)
-      startAnsweringTimeoutsRef.current.push(timeout3)
-      
-      // Mark answering as complete after animation finishes
-      const timeout4 = setTimeout(() => setIsAnsweringComplete(true), REASONING_MODEL_TIMINGS.ANSWER_COMPLETE_DELAY_MS)
-      startAnsweringTimeoutsRef.current.push(timeout4)
-    } else {
-      // Stop answering - clear all animations
-      setIsStartAnswering(false)
-      setIsAnsweringComplete(false)
-      setIsAnswerRevealed(false)
-      setAnimatedAnswerLines([false, false, false])
-    }
-  }, [isStartAnswering, showAnswer])
-
-  const handleRevealAnswer = useCallback(() => {
-    if (isAnswerRevealed) {
-      // Unreveal - hide the answer and show dummy content
-      setIsAnswerTransitioning(true)
-      setIsAnswerRevealed(false)
-      setIsAnsweringComplete(false)
-      // Clear transition state after animation completes
-      setTimeout(() => {
-        setIsAnswerTransitioning(false)
-      }, REASONING_MODEL_TIMINGS.ANSWER_TRANSITION_MS)
-    } else {
-      // Reveal - stop all animations and show the answer
-      startAnsweringTimeoutsRef.current.forEach(timeout => clearTimeout(timeout))
-      startAnsweringTimeoutsRef.current = []
-      
-      // Start transition
-      setIsAnswerTransitioning(true)
-      
-      // Stop the flickering animation and reveal the answer
-      setIsAnswerRevealed(true)
-      setAnimatedAnswerLines([false, false, false])
-      setIsStartAnswering(false)
-      setIsAnsweringComplete(true)
-      
-      // Ensure answer section is shown
-      if (!showAnswer) {
-        setShowAnswer(true)
-      }
-      
-      // Clear transition state after animation completes
-      setTimeout(() => {
-        setIsAnswerTransitioning(false)
-      }, REASONING_MODEL_TIMINGS.ANSWER_TRANSITION_MS)
-    }
-  }, [isAnswerRevealed, showAnswer])
-
-  const handleShowPlan = useCallback(() => {
-    // Clear any existing timeouts
-    planTimeoutsRef.current.forEach(timeout => clearTimeout(timeout))
-    planTimeoutsRef.current = []
-
-    if (!showPlanSection) {
-      // Show plan section (just visual display, doesn't start execution)
-      setShowPlanSection(true)
-      setVisiblePlanSteps(new Set())
-      
-      // Get all steps (use stateful steps array)
-      const allSteps = steps.map((step, index) => ({
-        step,
-        index
-      }))
-      
-      // Fade in each step sequentially
-      allSteps.forEach(({ index }, i) => {
-        const timeout = setTimeout(() => {
-          setVisiblePlanSteps(prev => new Set([...prev, index]))
-        }, i * REASONING_MODEL_TIMINGS.PLAN_STEP_FADE_IN_DELAY_MS)
-        planTimeoutsRef.current.push(timeout)
-      })
-    } else {
-      // Hide plan section
-      setShowPlanSection(false)
-      setVisiblePlanSteps(new Set())
-    }
-  }, [showPlanSection, steps])
-
-  const handleReplaceText = useCallback(() => {
-    // Replace old question with new (updated_question) for all active/pending steps
-    // Even if no updated_question, set to "updating" to trigger spinner animation
-    const newStates = stepStates.map((state, index) => {
-      if (state === "active" || state === "pending") {
-        // Set to "updating" to trigger spinner, even if no updated_question
-        return "updating"
-      }
-      return state
-    })
-    setStepStates(newStates)
-  }, [stepStates])
-
-  const handleRetrieval = useCallback(async () => {
-    // Do retrieval to docs found for all updating/active/pending steps
-    const stepsToRetrieve: number[] = []
-    let newStates = stepStates.map((state, index) => {
-      if (state === "updating" || state === "active" || state === "pending") {
-        stepsToRetrieve.push(index)
-        return "retrieving"
-      }
-      return state
-    })
-    setStepStates(newStates)
-    
-    // Wait for all retrieval promises to resolve
-    const promises = stepsToRetrieve.map(async (stepIndex) => {
-      // Check if we already have a promise for this step
-      if (!retrievalPromisesRef.current.has(stepIndex)) {
-        // Call the retrieval ready callback if provided
-        if (onRetrievalReadyRef.current) {
-          // Get the retrieval text for this step (use updated_question if available, otherwise question)
-          const step = steps[stepIndex]
-          const retrievalText = step?.updated_question || step?.question || ""
-          const promise = onRetrievalReadyRef.current(stepIndex, retrievalText)
-          retrievalPromisesRef.current.set(stepIndex, promise)
-          await promise
-          retrievalPromisesRef.current.delete(stepIndex)
-        } else {
-          // Default: wait for continue button
-          await new Promise<void>((resolve) => {
-            continueResolversRef.current.set(stepIndex, resolve)
-            setIsWaitingForContinue(true)
-          })
-          continueResolversRef.current.delete(stepIndex)
-          if (continueResolversRef.current.size === 0) {
-            setIsWaitingForContinue(false)
-          }
-        }
-      } else {
-        // Wait for existing promise
-        await retrievalPromisesRef.current.get(stepIndex)
-      }
-    })
-
-    // Wait for all retrievals to complete
-    await Promise.all(promises)
-    
-    // Move all retrieving steps directly to answering (skip documents_found)
-    setStepStates(prevStates => 
-      prevStates.map((state, index) => {
-        if (state === "retrieving") {
-          return "answering"
-        }
-        return state
-      })
-    )
-  }, [stepStates, steps])
-
-  const handleAnswer = useCallback(() => {
-    // Move all answering steps to completed
-    let newStates = stepStates.map((state, index) => {
-      if (state === "answering") {
-        return "completed"
-      }
-      return state
-    })
-    setStepStates(newStates)
-    
-    // After a brief delay, move to completed
-    setTimeout(() => {
-      setStepStates(prevStates => 
-        prevStates.map((state, index) => {
-          if (state === "answering") {
-            return "completed"
-          }
-          return state
-        })
-      )
-    }, 500)
-  }, [stepStates])
-
-  const handleToggleTask = useCallback(() => {
-    if (!hasAddedTask) {
-      // Add the task
-      const newTask: StepData = {
-        question: "",
-        updated_question: "Are there any additional fees?",
-        answer: "$500 setup",
-        documents_found: 2,
-      }
-      
-      setSteps(prevSteps => {
-        const newSteps = [...prevSteps, newTask]
-        const newIndex = newSteps.length - 1
-        setAddedTaskIndex(newIndex)
-        
-        // If plan section is showing, add to visiblePlanSteps immediately
-        // so the component renders (but it will be opacity 0 until typing starts)
-        if (showPlanSection) {
-          setVisiblePlanSteps(prev => new Set([...prev, newIndex]))
-        }
-        
-        return newSteps
-      })
-      setStepStates(prevStates => [...prevStates, "pending"])
-      setHasAddedTask(true)
-    } else {
-      // Remove the task
-      if (addedTaskIndex !== null) {
-        const indexToRemove = addedTaskIndex
-        setSteps(prevSteps => prevSteps.filter((_, index) => index !== indexToRemove))
-        setStepStates(prevStates => prevStates.filter((_, index) => index !== indexToRemove))
-        // Remove from visible steps and adjust indices
-        setVisiblePlanSteps(prev => {
-          const newSet = new Set<number>()
-          prev.forEach(index => {
-            if (index < indexToRemove) {
-              newSet.add(index)
-            } else if (index > indexToRemove) {
-              newSet.add(index - 1)
-            }
-            // Skip the removed index
-          })
-          return newSet
-        })
-        setHasAddedTask(false)
-        setAddedTaskIndex(null)
-      }
-    }
-  }, [hasAddedTask, addedTaskIndex, showPlanSection, steps, stepStates])
-
   // Helper function to wait for a promise
   const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
-  const handleSequentialFlow = useCallback(async () => {
-    if (isRunningSequential) {
-      // Stop the sequence
-      sequentialTimeoutsRef.current.forEach(timeout => clearTimeout(timeout))
-      sequentialTimeoutsRef.current = []
-      setIsRunningSequential(false)
-      return
+  // Consolidated animation helper: Animate lines sequentially
+  // Can be used for both thinking lines and answer lines
+  const animateLinesSequentially = (
+    timeoutsRef: React.MutableRefObject<NodeJS.Timeout[]>,
+    setAnimatedLines: React.Dispatch<React.SetStateAction<boolean[]>>,
+    delays: [number, number, number],
+    onComplete?: () => void,
+    completeDelay?: number
+  ) => {
+    setAnimatedLines([false, false, false])
+    const timeout1 = setTimeout(() => setAnimatedLines([true, false, false]), delays[0])
+    timeoutsRef.current.push(timeout1)
+    const timeout2 = setTimeout(() => setAnimatedLines([true, true, false]), delays[1])
+    timeoutsRef.current.push(timeout2)
+    const timeout3 = setTimeout(() => setAnimatedLines([true, true, true]), delays[2])
+    timeoutsRef.current.push(timeout3)
+    if (onComplete && completeDelay !== undefined) {
+      const timeout4 = setTimeout(() => onComplete(), completeDelay)
+      timeoutsRef.current.push(timeout4)
     }
+  }
 
-    setIsRunningSequential(true)
+  // Helper function to perform quick search
+  const performQuickSearch = useCallback(async (retrievalText: string) => {
+    // Trigger the retrieval callback if provided
+    if (onQuickSearchRef.current) {
+      await onQuickSearchRef.current(retrievalText)
+    } else if (onRetrievalReadyRef.current) {
+      // Fallback to old behavior if onQuickSearch not provided
+      await onRetrievalReadyRef.current(0, retrievalText)
+    }
     
+    // Show continue button and wait for user to click it
+    return new Promise<void>((resolve) => {
+      const continueId = Date.now() // Use timestamp as unique ID
+      continueResolversRef.current.set(continueId, resolve)
+      setIsWaitingForContinue(true)
+    })
+  }, [])
+
+  // Part 1: Insert query text and keep it highlighted
+  const insertQueryText = useCallback(async () => {
     // Clear all existing timeouts
     thinkingTimeoutsRef.current.forEach(timeout => clearTimeout(timeout))
     thinkingTimeoutsRef.current = []
@@ -1039,10 +927,24 @@ export function ReasoningModelCard({
       await onBeforeQueryTextRef.current()
     }
 
-    // 2. Show query text with highlight active
+    // 2. Show query text with highlight active (keep it highlighted - don't remove)
+    // Ensure query text is visible immediately
     setShowQueryText(true)
     setIsQueryHighlighted(true)
-    await wait(REASONING_MODEL_TIMINGS.SEQUENTIAL_FLOW.QUERY_HIGHLIGHT_MS)
+    // Don't wait - just show it immediately
+  }, [])
+
+  // Part 2: Run the remaining sequence (unhighlight, thinking, plan, steps, etc.)
+  const runRemainingSequence = useCallback(async () => {
+    if (isRunningSequential) {
+      // Stop the sequence
+      sequentialTimeoutsRef.current.forEach(timeout => clearTimeout(timeout))
+      sequentialTimeoutsRef.current = []
+      setIsRunningSequential(false)
+      return
+    }
+
+    setIsRunningSequential(true)
 
     // 3. Remove highlight
     setIsQueryHighlighted(false)
@@ -1051,15 +953,15 @@ export function ReasoningModelCard({
     // 4. Show thinking section with thinking animation
     setShowThinking(true)
     setIsThinking(true)
-    setAnimatedLines([false, false, false])
-    
-    // Animate lines sequentially
-    const timeout1 = setTimeout(() => setAnimatedLines([true, false, false]), REASONING_MODEL_TIMINGS.THINKING_LINE_1_DELAY_MS)
-    sequentialTimeoutsRef.current.push(timeout1)
-    const timeout2 = setTimeout(() => setAnimatedLines([true, true, false]), REASONING_MODEL_TIMINGS.THINKING_LINE_2_DELAY_MS)
-    sequentialTimeoutsRef.current.push(timeout2)
-    const timeout3 = setTimeout(() => setAnimatedLines([true, true, true]), REASONING_MODEL_TIMINGS.THINKING_LINE_3_DELAY_MS)
-    sequentialTimeoutsRef.current.push(timeout3)
+    animateLinesSequentially(
+      sequentialTimeoutsRef,
+      setAnimatedLines,
+      [
+        REASONING_MODEL_TIMINGS.THINKING_LINE_1_DELAY_MS,
+        REASONING_MODEL_TIMINGS.THINKING_LINE_2_DELAY_MS,
+        REASONING_MODEL_TIMINGS.THINKING_LINE_3_DELAY_MS
+      ]
+    )
 
     // Wait for thinking timer
     await wait(REASONING_MODEL_TIMINGS.SEQUENTIAL_FLOW.THINKING_TIMER_MS)
@@ -1115,34 +1017,9 @@ export function ReasoningModelCard({
           return newStates
         })
         
-        // Single retrieval call for both steps (call with step 2 index)
-        if (onRetrievalReadyRef.current) {
-          // Check if we already have a promise for step 2
-          if (!retrievalPromisesRef.current.has(2)) {
-            const step2 = STEP_DATA.steps[2]
-            const retrievalText = step2?.updated_question || step2?.question || ""
-            const promise = onRetrievalReadyRef.current(2, retrievalText)
-            retrievalPromisesRef.current.set(2, promise)
-            retrievalPromisesRef.current.set(3, promise) // Share the same promise for step 3
-            await promise
-            retrievalPromisesRef.current.delete(2)
-            retrievalPromisesRef.current.delete(3)
-          } else {
-            await retrievalPromisesRef.current.get(2)
-          }
-        } else {
-          // Default: wait for continue button
-          await new Promise<void>((resolve) => {
-            continueResolversRef.current.set(2, resolve)
-            continueResolversRef.current.set(3, resolve) // Share the same resolver
-            setIsWaitingForContinue(true)
-          })
-          continueResolversRef.current.delete(2)
-          continueResolversRef.current.delete(3)
-          if (continueResolversRef.current.size === 0) {
-            setIsWaitingForContinue(false)
-          }
-        }
+        // Single retrieval call for both steps - use quick search
+        const retrievalText = step2?.updated_question || step2?.question || ""
+        await performQuickSearch(retrievalText)
         
         // Move both directly from retrieving to answering (skip documents_found)
         setStepStates(prevStates => {
@@ -1210,30 +1087,9 @@ export function ReasoningModelCard({
           return newStates
         })
         
-        // Wait for retrieval to complete (via callback if provided, or wait for continue button)
-        if (onRetrievalReadyRef.current) {
-          // Check if we already have a promise for this step
-          if (!retrievalPromisesRef.current.has(lineIndex)) {
-            const currentStep = STEP_DATA.steps[lineIndex]
-            const retrievalText = currentStep?.updated_question || currentStep?.question || ""
-            const promise = onRetrievalReadyRef.current(lineIndex, retrievalText)
-            retrievalPromisesRef.current.set(lineIndex, promise)
-            await promise
-            retrievalPromisesRef.current.delete(lineIndex)
-          } else {
-            await retrievalPromisesRef.current.get(lineIndex)
-          }
-        } else {
-          // Default: wait for continue button
-          await new Promise<void>((resolve) => {
-            continueResolversRef.current.set(lineIndex, resolve)
-            setIsWaitingForContinue(true)
-          })
-          continueResolversRef.current.delete(lineIndex)
-          if (continueResolversRef.current.size === 0) {
-            setIsWaitingForContinue(false)
-          }
-        }
+        // Wait for retrieval to complete - use quick search
+        const retrievalText = currentStep?.updated_question || currentStep?.question || ""
+        await performQuickSearch(retrievalText)
         
         // Move directly from retrieving to answering (skip documents_found)
         setStepStates(prevStates => {
@@ -1261,7 +1117,7 @@ export function ReasoningModelCard({
     // 4. FOR LINE 5: add task -> replace text -> retrieval -> answer
     const newTask: StepData = {
       question: "",
-      updated_question: "Are there any additional fees?",
+      updated_question: "What is the enterprise pricing?",
       answer: "$500 setup",
       documents_found: 2,
     }
@@ -1303,28 +1159,9 @@ export function ReasoningModelCard({
       return newStates
     })
     
-    // Wait for retrieval to complete (via callback if provided, or wait for continue button)
-    if (onRetrievalReadyRef.current) {
-      if (!retrievalPromisesRef.current.has(line5Index)) {
-        const retrievalText = newTask?.updated_question || newTask?.question || ""
-        const promise = onRetrievalReadyRef.current(line5Index, retrievalText)
-        retrievalPromisesRef.current.set(line5Index, promise)
-        await promise
-        retrievalPromisesRef.current.delete(line5Index)
-      } else {
-        await retrievalPromisesRef.current.get(line5Index)
-      }
-    } else {
-      // Default: wait for continue button
-      await new Promise<void>((resolve) => {
-        continueResolversRef.current.set(line5Index, resolve)
-        setIsWaitingForContinue(true)
-      })
-      continueResolversRef.current.delete(line5Index)
-      if (continueResolversRef.current.size === 0) {
-        setIsWaitingForContinue(false)
-      }
-    }
+    // Wait for retrieval to complete - use quick search
+    const retrievalText = newTask?.updated_question || newTask?.question || ""
+    await performQuickSearch(retrievalText)
     
     // Move directly from retrieving to answering (skip documents_found)
     setStepStates(prevStates => {
@@ -1353,17 +1190,17 @@ export function ReasoningModelCard({
     setIsStartAnswering(true)
     setIsAnsweringComplete(false)
     setIsAnswerRevealed(false)
-    setAnimatedAnswerLines([false, false, false])
-    
-    // Animate answer lines sequentially
-    const answerTimeout1 = setTimeout(() => setAnimatedAnswerLines([true, false, false]), REASONING_MODEL_TIMINGS.ANSWER_LINE_1_DELAY_MS)
-    sequentialTimeoutsRef.current.push(answerTimeout1)
-    const answerTimeout2 = setTimeout(() => setAnimatedAnswerLines([true, true, false]), REASONING_MODEL_TIMINGS.ANSWER_LINE_2_DELAY_MS)
-    sequentialTimeoutsRef.current.push(answerTimeout2)
-    const answerTimeout3 = setTimeout(() => setAnimatedAnswerLines([true, true, true]), REASONING_MODEL_TIMINGS.ANSWER_LINE_3_DELAY_MS)
-    sequentialTimeoutsRef.current.push(answerTimeout3)
-    const answerTimeout4 = setTimeout(() => setIsAnsweringComplete(true), REASONING_MODEL_TIMINGS.ANSWER_COMPLETE_DELAY_MS)
-    sequentialTimeoutsRef.current.push(answerTimeout4)
+    animateLinesSequentially(
+      sequentialTimeoutsRef,
+      setAnimatedAnswerLines,
+      [
+        REASONING_MODEL_TIMINGS.ANSWER_LINE_1_DELAY_MS,
+        REASONING_MODEL_TIMINGS.ANSWER_LINE_2_DELAY_MS,
+        REASONING_MODEL_TIMINGS.ANSWER_LINE_3_DELAY_MS
+      ],
+      () => setIsAnsweringComplete(true),
+      REASONING_MODEL_TIMINGS.ANSWER_COMPLETE_DELAY_MS
+    )
 
     // Wait for answering timer
     await wait(REASONING_MODEL_TIMINGS.SEQUENTIAL_FLOW.ANSWERING_TIMER_MS)
@@ -1379,7 +1216,7 @@ export function ReasoningModelCard({
     setIsAnswerTransitioning(false)
     
     setIsRunningSequential(false)
-  }, [isRunningSequential, steps, stepStates, showPlanSection, hasAddedTask, addedTaskIndex])
+  }, [isRunningSequential, steps, stepStates, showPlanSection, hasAddedTask, addedTaskIndex, performQuickSearch])
 
   // Cleanup timeouts on unmount
   useEffect(() => {
@@ -1398,7 +1235,8 @@ export function ReasoningModelCard({
 
   useEffect(() => {
     onRetrievalReadyRef.current = onRetrievalReady
-  }, [onRetrievalReady])
+    onQuickSearchRef.current = onQuickSearch
+  }, [onRetrievalReady, onQuickSearch])
 
   useEffect(() => {
     onBeforeQueryTextRef.current = onBeforeQueryText
@@ -1412,74 +1250,71 @@ export function ReasoningModelCard({
   useEffect(() => {
     if (onFunctionsReadyRef.current) {
       onFunctionsReadyRef.current({
-        runSequentialFlow: handleSequentialFlow,
+        insertQueryText: insertQueryText,
+        runRemainingSequence: runRemainingSequence,
         reset: handleReset,
       })
     }
-  }, [handleSequentialFlow, handleReset])
+  }, [insertQueryText, runRemainingSequence, handleReset])
 
-  // Memoize the handleToggleQueryHighlight callback to keep it stable
-  const handleToggleQueryHighlight = useCallback(() => {
-    if (!showQueryText) {
-      setShowQueryText(true)
-      setIsQueryHighlighted(true)
+  // Handler for toggling between initial and final states
+  const handleToggleState = useCallback(() => {
+    if (showFinal) {
+      // If in final state, reset to initial state
+      handleReset()
+      if (onToggleFinal) {
+        onToggleFinal()
+      }
     } else {
-      setIsQueryHighlighted(!isQueryHighlighted)
+      // If in initial state, go to final state
+      if (onToggleFinal) {
+        onToggleFinal()
+      }
     }
-  }, [showQueryText, isQueryHighlighted])
+  }, [showFinal, handleReset, onToggleFinal])
 
   // Memoize buttons to avoid recreating on every render
   const buttons = useMemo(() => {
     return (
-      <div className="flex flex-col gap-2 items-center">
-        <div className="flex flex-row gap-2">
-          <Button onClick={handleSequentialFlow} size="sm" variant={isRunningSequential ? "destructive" : "default"}>
-            {isRunningSequential ? "Stop Sequence" : "Run Full Sequence"}
+      <div className="flex flex-col gap-2 items-center" style={{ width: "200px" }}>
+        <Button onClick={insertQueryText} size="sm" variant="default" className="w-full">
+          Insert Query Text
+        </Button>
+        <Button onClick={runRemainingSequence} size="sm" variant={isRunningSequential ? "destructive" : "default"} className="w-full">
+          {isRunningSequential ? "Stop Sequence" : "Run Remaining Sequence"}
+        </Button>
+        {onToggleFinal && (
+          <Button onClick={handleToggleState} size="sm" variant={showFinal ? "default" : "outline"} className="w-full">
+            {showFinal ? "Initial State" : "Final State"}
           </Button>
-          <Button onClick={handleReset} size="sm">
-            Reset
+        )}
+        {isWaitingForContinue && (
+          <Button 
+            onClick={() => {
+              // Resolve all waiting promises
+              continueResolversRef.current.forEach((resolve) => {
+                resolve()
+              })
+              continueResolversRef.current.clear()
+              setIsWaitingForContinue(false)
+            }} 
+            size="sm"
+            variant="default"
+            className="w-full"
+            style={{ backgroundColor: "var(--traffic-light-green)", color: "white" }}
+          >
+            Continue
           </Button>
-        </div>
-          {isWaitingForContinue && (
-            <Button 
-              onClick={() => {
-                // Resolve all waiting promises
-                continueResolversRef.current.forEach((resolve) => {
-                  resolve()
-                })
-                continueResolversRef.current.clear()
-                setIsWaitingForContinue(false)
-              }} 
-              size="sm"
-              variant="default"
-              style={{ backgroundColor: "var(--traffic-light-green)", color: "white" }}
-            >
-              Continue
-            </Button>
-          )}
+        )}
       </div>
     )
   }, [
     isRunningSequential,
-    isThinking,
-    showPlanSection,
-    isStartAnswering,
-    isAnswerRevealed,
-    hasAddedTask,
-    isQueryHighlighted,
-    showQueryText,
     isWaitingForContinue,
-    handleSequentialFlow,
-    handleReset,
-    handleToggleThinking,
-    handleShowPlan,
-    handleReplaceText,
-    handleRetrieval,
-    handleAnswer,
-    handleToggleStartAnswering,
-    handleRevealAnswer,
-    handleToggleTask,
-    handleToggleQueryHighlight,
+    showFinal,
+    handleToggleState,
+    insertQueryText,
+    runRemainingSequence,
   ])
 
   useEffect(() => {
@@ -1497,19 +1332,19 @@ export function ReasoningModelCard({
         content={
           <>
           <div className="" style={{ borderTop: "none" }}>
-            <p className="styling-text line-height-1 mt-[var(--padding)]">
+            <p className="styling-text mt-[var(--padding)]">
               <span className="styling-text font-bold" style={{ marginRight: "0.5em" }}>Query:</span>
               <span 
                 className={isQueryHighlighted ? "text-focus-active" : ""} 
                 style={{ 
                   position: "relative", 
                   display: "inline-block",
-                  opacity: showQueryText ? 1 : 0, 
-                  transition: `opacity ${REASONING_MODEL_TIMINGS.STATUS_TRANSITION_MS}ms ease-in-out`
+                  opacity: (showFinal || showQueryText) ? 1 : 0, 
+                  transition: (showFinal || !showQueryText) ? 'none' : `opacity ${REASONING_MODEL_TIMINGS.STATUS_TRANSITION_MS}ms ease-in-out`
                 }}
               >
                 <span style={{ position: "relative", zIndex: 1 }}>
-                  {query}
+                  {showFinal && !query ? "What is the enterprise pricing?" : (query || "What is the enterprise pricing?")}
                 </span>
               </span>
             </p>
@@ -1518,8 +1353,8 @@ export function ReasoningModelCard({
               <Section title="Thinking">
                 <DummyParagraph
                   items={[
-                    <DummyLine width="100%" height="var(--line-height-big)" className={animatedLines[0] ? "text-pulse" : ""} />, 
-                    <DummyLine width="87%" height="var(--line-height-big)" className={animatedLines[1] ? "text-pulse" : ""} />,
+                    <DummyLine width="100%" height="var(--line-height-big)" className={(showFinal || !animatedLines[0]) ? "" : "text-pulse"} />, 
+                    <DummyLine width="87%" height="var(--line-height-big)" className={(showFinal || !animatedLines[1]) ? "" : "text-pulse"} />,
                   ]}
                   gap="var(--gap-big)"
                 />
@@ -1541,10 +1376,10 @@ export function ReasoningModelCard({
                     return (
                       <div
                         key={`step-${index}-${step.question}`}
-                        className={isVisible && !isNewlyAdded ? "plan-step-fade-in" : ""}
+                        className={(showFinal || !isVisible || isNewlyAdded) ? "" : "plan-step-fade-in"}
                         style={{
-                          opacity: showPlanSection ? (isVisible && shouldShow ? 1 : 0) : 1,
-                          transition: showPlanSection && !isNewlyAdded ? `opacity ${REASONING_MODEL_TIMINGS.STATUS_TRANSITION_MS}ms ease-in` : "none"
+                          opacity: showFinal ? 1 : (showPlanSection ? (isVisible && shouldShow ? 1 : 0) : 1),
+                          transition: showFinal ? 'none' : (showPlanSection && !isNewlyAdded ? `opacity ${REASONING_MODEL_TIMINGS.STATUS_TRANSITION_MS}ms ease-in` : "none")
                         }}
                       >
                         <Step
@@ -1555,13 +1390,14 @@ export function ReasoningModelCard({
                           onTypingStart={isNewlyAdded ? () => {
                             setNewTaskTypingStarted(true)
                           } : undefined}
+                          showFinal={showFinal}
                         />
                       </div>
                     )
                   })}
               </Section>
             )}
-            {showAnswer && <AnswerSection borderTop={true} animatedLines={isAnswerRevealed ? undefined : (isStartAnswering ? animatedAnswerLines : undefined)} showText={isAnswerRevealed ? false : true} isTransitioning={isAnswerTransitioning} />}
+            {showAnswer && <AnswerSection borderTop={true} animatedLines={showFinal ? undefined : (isAnswerRevealed ? undefined : (isStartAnswering ? animatedAnswerLines : undefined))} showText={showFinal ? false : (isAnswerRevealed ? false : true)} isTransitioning={showFinal ? false : isAnswerTransitioning} />}
           </>
         }
       />

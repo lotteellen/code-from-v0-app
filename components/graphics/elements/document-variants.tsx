@@ -1,107 +1,212 @@
 import { useState, useEffect } from "react"
-import { DummyLine, DummyParagraph } from "../helpers/dummy-helpers"
+import { MailIcon } from "lucide-react"
+import { DummyLine, DummyParagraph, isLineHighlighted, getHighlightClass } from "../helpers/dummy-helpers"
 import { Document } from "../helpers/document"
 import { DOCUMENT_VARIANTS_TIMINGS } from "../helpers/animation-timings"
 import "../helpers/globals.css"
 
+export const AVAILABLE_DOCUMENT_VARIANTS = [
+  "simple",
+  "bullets",
+  "bullets2",
+  "chart",
+  "chart2",
+  "table",
+  "table2",
+  "image",
+  "image2",
+  "spreadsheet",
+  "spreadsheet2",
+  "email",
+  "email2",
+  "email3",
+] as const
+
+export type DocumentVariant = typeof AVAILABLE_DOCUMENT_VARIANTS[number]
+
+export const EMAIL_VARIANTS = ["email", "email2", "email3"] as const
+export const SPREADSHEET_VARIANTS = ["spreadsheet", "spreadsheet2"] as const
+
+// Highest highlightable key number for each variant (0-based indexing)
+export const VARIANT_MAX_KEYS: Record<DocumentVariant, number> = {
+  simple: 6,
+  bullets: 5,
+  bullets2: 6,
+  chart: 2,
+  chart2: 2,
+  table: 10,
+  table2: 12,
+  image: 5,
+  image2: 7,
+  spreadsheet: 54, // 11 rows × 5 columns (0-54)
+  spreadsheet2: 35, // 9 rows × 4 columns (0-35)
+  email: 4,
+  email2: 6,
+  email3: 4,
+} as const
+
+function BulletPoint() {
+  return (
+    <div style={{ 
+      width: "var(--circle-size)", 
+      height: "var(--circle-size)", 
+      borderRadius: "999px", 
+      background: "var(--medium-grey)", 
+      flexShrink: 0 
+    }} />
+  )
+}
+
+function BulletItem({ 
+  lineKey, 
+  lineWidth, 
+  highlight, 
+  showFinal,
+  borderRadius
+}: { 
+  lineKey: number; 
+  lineWidth: string; 
+  highlight?: boolean; 
+  showFinal?: boolean;
+  borderRadius?: string;
+}) {
+  return (
+    <DummyParagraph
+      items={[
+        <BulletPoint key={`bullet-${lineKey}`} />,
+        <DummyLine 
+          key={lineKey} 
+          width={lineWidth} 
+          height="var(--line-height)" 
+          highlight={highlight || false} 
+          showFinal={showFinal}
+          borderRadius={borderRadius}
+        />,
+      ]}
+      direction="row"
+      alignItems="center"
+      gap="var(--gap)"
+    />
+  )
+}
+
 export function DocumentVariants({
-  title = "Document", 
   variant, 
   highlightDummy, 
   externalHighlight, 
   highlightLines,
-  width = "80px"
+  width = "80px",
+  showFinal = false,
 }: { 
-  title?: string; 
   variant: string; 
   highlightDummy?: boolean; 
   externalHighlight?: boolean; 
   highlightLines?: number[];
   width?: string;
+  showFinal?: boolean;
 }) {
   const [internalHighlightDummyKey, setInternalHighlightDummyKey] = useState(0)
   const [internalShouldHighlight, setInternalShouldHighlight] = useState(false)
   const [internalHighlightLines, setInternalHighlightLines] = useState<number[]>([])
 
-  // Reset highlight when variant changes
+  // Consolidated effect: handle variant changes, externalHighlight, and highlightLines
   useEffect(() => {
+    // Reset on variant change
     setInternalShouldHighlight(false)
     setInternalHighlightDummyKey(0)
     setInternalHighlightLines([])
-  }, [variant])
-
-  // Handle external highlight prop
-  useEffect(() => {
-    if (externalHighlight !== undefined) {
-      if (externalHighlight && variant === "simple") {
-        setInternalShouldHighlight(false) // Reset first
-        setInternalHighlightDummyKey(prev => prev + 1) // Increment key to force re-render
-        // Then trigger highlight after a brief delay to ensure re-render happens first
-        setTimeout(() => {
-          setInternalShouldHighlight(true)
-        }, DOCUMENT_VARIANTS_TIMINGS.HIGHLIGHT_DELAY_MS)
-      } else {
-        setInternalShouldHighlight(false)
-      }
-    }
-  }, [externalHighlight, variant])
-
-  // Handle highlightLines prop
-  useEffect(() => {
+    
+    // Handle highlightLines prop
     if (highlightLines !== undefined) {
-      setInternalHighlightDummyKey(prev => prev + 1) // Force re-render
       setInternalHighlightLines(highlightLines)
+      setInternalHighlightDummyKey(prev => prev + 1) // Force re-render for highlight changes
     }
-  }, [highlightLines])
+  }, [variant, highlightLines])
 
-  const handleHighlightClick = () => {
-    if (variant === "simple") {
-      setInternalShouldHighlight(false) // Reset first
-      setInternalHighlightDummyKey(prev => prev + 1) // Increment key to force re-render
-      // Then trigger highlight after a brief delay to ensure re-render happens first
+  // Handle external highlight prop (only affects "simple" variant)
+  useEffect(() => {
+    if (externalHighlight === undefined) return
+    
+    if (!externalHighlight) {
+      setInternalShouldHighlight(false)
+      return
+    }
+    
+    if (showFinal) {
+      setInternalShouldHighlight(true)
+    } else if (variant === "simple") {
+      setInternalShouldHighlight(false)
+      setInternalHighlightDummyKey(prev => prev + 1)
       setTimeout(() => {
         setInternalShouldHighlight(true)
       }, DOCUMENT_VARIANTS_TIMINGS.HIGHLIGHT_DELAY_MS)
     }
-  }
-  
-    const getContent = (): React.ReactNode => {
-      const linesToHighlight = internalHighlightLines.length > 0 ? internalHighlightLines : undefined
-      if (variant === "table") return <TableContent highlightLines={linesToHighlight} />
-      if (variant === "chart") return <ChartContent1 highlightLines={linesToHighlight} />
-      if (variant === "chart2") return <ChartContent2 highlightLines={linesToHighlight} />
-      if (variant === "bullets") return <BulletsContent highlightLines={linesToHighlight} />
-      if (variant === "image") return <ImageContent highlightLines={linesToHighlight} />
-      if (variant === "simple") return <SimpleContent key={`simple-${internalHighlightDummyKey}`} highlightDummy={internalShouldHighlight || (highlightDummy ?? false)} highlightLines={linesToHighlight} />
+  }, [externalHighlight, variant, showFinal])
+
+  const getContent = (): React.ReactNode => {
+    const linesToHighlight = internalHighlightLines.length > 0 ? internalHighlightLines : undefined
+    const contentProps = { highlightLines: linesToHighlight, showFinal }
+    
+    const variantMap: Record<string, React.ReactNode> = {
+      table: <TableContent {...contentProps} />,
+      table2: <TableContent2 {...contentProps} />,
+      chart: <ChartContent1 {...contentProps} />,
+      chart2: <ChartContent2 {...contentProps} />,
+      bullets: <BulletsContent {...contentProps} />,
+      bullets2: <BulletsContent2 {...contentProps} />,
+      image: <ImageContent {...contentProps} />,
+      image2: <ImageContent2 {...contentProps} />,
+      simple: <SimpleContent 
+        key={`simple-${internalHighlightDummyKey}`} 
+        highlightDummy={internalShouldHighlight || (highlightDummy ?? false)} 
+        {...contentProps} 
+      />,
+      spreadsheet: <SpreadsheetContent {...contentProps} />,
+      spreadsheet2: <SpreadsheetContent2 {...contentProps} />,
+      email: <EmailContent {...contentProps} />,
+      email2: <EmailContent2 {...contentProps} />,
+      email3: <EmailContent3 {...contentProps} />,
     }
     
-    return (
-      <div style={{ width: width }}>  
-        <Document title={variant+".pdf"} content={getContent()} />
-      </div>
-    )
+    return variantMap[variant]
+  }
+  
+  const isEmailVariant = EMAIL_VARIANTS.includes(variant as any)
+  const isSpreadsheetVariant = SPREADSHEET_VARIANTS.includes(variant as any)
+  const needsSpecialAspectRatio = isEmailVariant || isSpreadsheetVariant
+  
+  return (
+    <div style={{ width }}>  
+      <Document 
+        title={`${variant}.pdf`}
+        content={getContent()} 
+        aspectRatio={needsSpecialAspectRatio ? "8.5 / 11" : undefined}
+        verticalPadding={!needsSpecialAspectRatio}
+      />
+    </div>
+  )
 }
 
 
 
 
-function SimpleContent({ highlightDummy, highlightLines }: { highlightDummy?: boolean; highlightLines?: number[] }) {
+function SimpleContent({ highlightDummy, highlightLines, showFinal = false }: { highlightDummy?: boolean; highlightLines?: number[]; showFinal?: boolean }) {
   return (
     <div>
       <DummyParagraph
         items={[
-          <DummyLine key={0} width="91%" height="var(--line-height)" highlight={highlightLines?.includes(0) || false}/>,
-          <DummyLine key={1} width="100%" height="var(--line-height)" highlight={highlightDummy || highlightLines?.includes(1) || false}/>,
-          <DummyLine key={2} width="75%" height="var(--line-height)" highlight={highlightLines?.includes(2) || false}/>,
+          <DummyLine key={0} width="91%" height="var(--line-height)" highlight={isLineHighlighted(0, highlightLines)} showFinal={showFinal}/>,
+          <DummyLine key={1} width="100%" height="var(--line-height)" highlight={highlightDummy || isLineHighlighted(1, highlightLines)} showFinal={showFinal}/>,
+          <DummyLine key={2} width="75%" height="var(--line-height)" highlight={isLineHighlighted(2, highlightLines)} showFinal={showFinal}/>,
         ]}
         gap="var(--gap)"
       />
         <DummyParagraph
           items={[
-            <DummyLine key={3} width="82%" height="var(--line-height)" highlight={highlightLines?.includes(3) || false}/>,
-            <DummyLine key={4} width="100%" height="var(--line-height)" highlight={highlightLines?.includes(4) || false}/>,
-            <DummyLine key={5} width="86%" height="var(--line-height)" highlight={highlightLines?.includes(5) || false}/>,
-            <DummyLine key={6} width="74%" height="var(--line-height)" highlight={highlightLines?.includes(6) || false}/>,
+            <DummyLine key={3} width="82%" height="var(--line-height)" highlight={isLineHighlighted(3, highlightLines)} showFinal={showFinal}/>,
+            <DummyLine key={4} width="100%" height="var(--line-height)" highlight={isLineHighlighted(4, highlightLines)} showFinal={showFinal}/>,
+            <DummyLine key={5} width="86%" height="var(--line-height)" highlight={isLineHighlighted(5, highlightLines)} showFinal={showFinal}/>,
+            <DummyLine key={6} width="74%" height="var(--line-height)" highlight={isLineHighlighted(6, highlightLines)} showFinal={showFinal}/>,
           ]}
           gap="var(--gap)"
         />
@@ -109,40 +214,82 @@ function SimpleContent({ highlightDummy, highlightLines }: { highlightDummy?: bo
   )
 }
 
-function BulletsContent({ highlightLines }: { highlightLines?: number[] }) {
+function BulletsContent({ highlightLines, showFinal = false }: { highlightLines?: number[]; showFinal?: boolean }) {
   return (
     <div>
        <DummyParagraph
           items={[
-            <DummyLine key={0} width="65%" height="var(--line-height)" highlight={highlightLines?.includes(0) || false}/>,
-            <DummyLine key={1} width="100%" height="var(--line-height)" highlight={highlightLines?.includes(1) || false}/>,
-            <DummyLine key={2} width="94%" height="var(--line-height)" highlight={highlightLines?.includes(2) || false}/>,
+            <DummyLine key={0} width="65%" height="var(--line-height)" highlight={isLineHighlighted(0, highlightLines)} showFinal={showFinal}/>,
+            <DummyLine key={1} width="100%" height="var(--line-height)" highlight={isLineHighlighted(1, highlightLines)} showFinal={showFinal}/>,
+            <DummyLine key={2} width="94%" height="var(--line-height)" highlight={isLineHighlighted(2, highlightLines)} showFinal={showFinal}/>,
           ]}
           gap="var(--gap)"
         />
-      <DummyParagraph
-        items={[
-          <DummyLine key={3} width="66%" height="var(--line-height)" highlight={highlightLines?.includes(3) || false} />,
           <DummyParagraph
-            key={4}
             items={[
-              <div key="bullet-4" style={{ width: "var(--circle-size)", height: "var(--circle-size)", borderRadius: "999px", background: "var(--medium-grey)", flexShrink: 0 }} />,
-              <DummyLine key={4} width="100%" height="var(--line-height)" highlight={highlightLines?.includes(4) || false} />,
+              <DummyLine key={3} width="66%" height="var(--line-height)" highlight={isLineHighlighted(3, highlightLines)} showFinal={showFinal} />,
+              <BulletItem 
+                key={4}
+                lineKey={4} 
+                lineWidth="100%" 
+                highlight={isLineHighlighted(4, highlightLines)} 
+                showFinal={showFinal} 
+              />,
+              <BulletItem 
+                key={5}
+                lineKey={5} 
+                lineWidth="83%" 
+                highlight={isLineHighlighted(5, highlightLines)} 
+                showFinal={showFinal} 
+              />,
             ]}
-            direction="row"
-            alignItems="center"
-            gap="var(--gap)"
-          />,
-          <DummyParagraph
-            key={5}
-            items={[
-              <div key="bullet-5" style={{ width: "var(--circle-size)", height: "var(--circle-size)", borderRadius: "999px", background: "var(--medium-grey)", flexShrink: 0 }} />,
-              <DummyLine key={5} width="83%" height="var(--line-height)" highlight={highlightLines?.includes(5) || false} />,
-            ]}
-            direction="row"
-            alignItems="center"
             gap="var(--gap)"
           />
+    </div>
+  )
+}
+
+function BulletsContent2({ highlightLines, showFinal = false }: { highlightLines?: number[]; showFinal?: boolean }) {
+  return (
+    <div>
+      <DummyParagraph
+        items={[
+          <DummyLine key={0} width="72%" height="var(--line-height)" highlight={isLineHighlighted(0, highlightLines)} showFinal={showFinal}/>,
+          <BulletItem 
+            key={1}
+            lineKey={1} 
+            lineWidth="100%" 
+            highlight={isLineHighlighted(1, highlightLines)} 
+            showFinal={showFinal} 
+          />,
+          <BulletItem 
+            key={2}
+            lineKey={2} 
+            lineWidth="91%" 
+            highlight={isLineHighlighted(2, highlightLines)} 
+            showFinal={showFinal} 
+          />,
+          <BulletItem 
+            key={3}
+            lineKey={3} 
+            lineWidth="78%" 
+            highlight={isLineHighlighted(3, highlightLines)} 
+            showFinal={showFinal} 
+          />,
+          <BulletItem 
+            key={4}
+            lineKey={4} 
+            lineWidth="85%" 
+            highlight={isLineHighlighted(4, highlightLines)} 
+            showFinal={showFinal} 
+          />,
+        ]}
+        gap="var(--gap)"
+      />
+       <DummyParagraph
+        items={[
+          <DummyLine key={5} width="72%" height="var(--line-height)" highlight={isLineHighlighted(5, highlightLines)} showFinal={showFinal}/>,
+          <DummyLine key={6} width="88%" height="var(--line-height)" highlight={isLineHighlighted(6, highlightLines)} showFinal={showFinal}/>,
         ]}
         gap="var(--gap)"
       />
@@ -150,22 +297,24 @@ function BulletsContent({ highlightLines }: { highlightLines?: number[] }) {
   )
 }
 
-function ImageContent({ highlightLines }: { highlightLines?: number[] }) {
+function ImageContent({ highlightLines, showFinal = false }: { highlightLines?: number[]; showFinal?: boolean }) {
   return (
     <div>
       <DummyParagraph
         items={[
-          <DummyLine key={0} width="100%" height="var(--line-height)" highlight={highlightLines?.includes(0) || false} />,
-          <DummyLine key={1} width="91%" height="var(--line-height)" highlight={highlightLines?.includes(1) || false} />,
-          <DummyLine key={2} width="91%" height="var(--line-height)" highlight={highlightLines?.includes(2) || false} />,
-          <DummyLine key={3} width="100%" height="var(--line-height)" highlight={highlightLines?.includes(3) || false} />
+          <DummyLine key={0} width="100%" height="var(--line-height)" highlight={isLineHighlighted(0, highlightLines)} showFinal={showFinal} />,
+          <DummyLine key={1} width="91%" height="var(--line-height)" highlight={isLineHighlighted(1, highlightLines)} showFinal={showFinal} />,
+          <DummyLine key={2} width="91%" height="var(--line-height)" highlight={isLineHighlighted(2, highlightLines)} showFinal={showFinal} />,
+          <DummyLine key={3} width="100%" height="var(--line-height)" highlight={isLineHighlighted(3, highlightLines)} showFinal={showFinal} />
         ]}
         gap="var(--gap)"
       />
       <DummyParagraph
         items={[
           <div key="image" style={{ width: "40%", height: "18px", borderRadius: "var(--image-radius)", background: "var(--medium-light-grey)", flexShrink: 0 }} />,
-          <DummyLine key={4} width="40%" height="var(--line-height-small)" highlight={highlightLines?.includes(4) || false} />,
+          <DummyLine key={4} width="40%" height="var(--line-height-small)" highlight={isLineHighlighted(4, highlightLines)} showFinal={showFinal} />,
+          <DummyLine key={5} width="40%" height="var(--line-height-small)" highlight={isLineHighlighted(5, highlightLines)} showFinal={showFinal} />,
+
 
         ]}
         gap="var(--gap-small)"
@@ -176,13 +325,59 @@ function ImageContent({ highlightLines }: { highlightLines?: number[] }) {
   )
 }
 
-function ChartContent1({ highlightLines }: { highlightLines?: number[] }) {
+function ImageContent2({ highlightLines, showFinal = false }: { highlightLines?: number[]; showFinal?: boolean }) {
+  return (
+    <div>
+      <DummyParagraph
+      items={[
+      <DummyParagraph
+        items={[
+          <DummyLine key={0} width="100%" height="var(--line-height)" highlight={isLineHighlighted(0, highlightLines)} showFinal={showFinal} />,
+          <DummyLine key={1} width="87%" height="var(--line-height)" highlight={isLineHighlighted(1, highlightLines)} showFinal={showFinal} />,
+        ]}
+        gap="var(--gap)"
+      />,
+      <DummyParagraph
+        items={[
+          <div key="image" style={{ width: "42%", borderRadius: "var(--image-radius)", background: "var(--medium-light-grey)", flexShrink: 0, alignSelf: "stretch" }} />,
+          <DummyParagraph
+            key="text"
+            items={[
+              <DummyLine key={2} width="100%" height="var(--line-height)" highlight={isLineHighlighted(2, highlightLines)} showFinal={showFinal} />,
+              <DummyLine key={3} width="88%" height="var(--line-height)" highlight={isLineHighlighted(3, highlightLines)} showFinal={showFinal} />,
+              <DummyLine key={4} width="83%" height="var(--line-height)" highlight={isLineHighlighted(4, highlightLines)} showFinal={showFinal} />,
+            ]}
+            gap="var(--gap)"
+            direction="column"
+            style={{ flex: 1 }}
+          />,
+        ]}
+        gap="var(--gap-small)"
+        direction="row"
+        alignItems="stretch"
+      />,
+      <DummyParagraph
+        items={[
+          <DummyLine key={5} width="100%" height="var(--line-height)" highlight={isLineHighlighted(5, highlightLines)} showFinal={showFinal} />,
+          <DummyLine key={6} width="98%" height="var(--line-height)" highlight={isLineHighlighted(6, highlightLines)} showFinal={showFinal} />,
+          <DummyLine key={7} width="82%" height="var(--line-height)" highlight={isLineHighlighted(7, highlightLines)} showFinal={showFinal} />
+        ]}
+        gap="var(--gap)"
+      />,
+      ]}
+      gap="var(--gap)"
+      />
+    </div>
+  )
+}
+
+function ChartContent1({ highlightLines, showFinal = false }: { highlightLines?: number[]; showFinal?: boolean }) {
   return (
     <div>
       <DummyParagraph
         items={[
-          <DummyLine key={0} width="83%" height="var(--line-height)" highlight={highlightLines?.includes(0) || false} />,
-          <DummyLine key={1} width="100%" height="var(--line-height)" highlight={highlightLines?.includes(1) || false} />
+          <DummyLine key={0} width="83%" height="var(--line-height)" highlight={isLineHighlighted(0, highlightLines)} showFinal={showFinal} />,
+          <DummyLine key={1} width="100%" height="var(--line-height)" highlight={isLineHighlighted(1, highlightLines)} showFinal={showFinal} />
         ]}
         gap="var(--gap)"
       />
@@ -224,19 +419,19 @@ function ChartContent1({ highlightLines }: { highlightLines?: number[] }) {
           />
         </svg>
       </div>
-      <DummyLine key={2} width="100%" height="var(--line-height)" highlight={highlightLines?.includes(2) || false} />
+      <DummyLine key={2} width="100%" height="var(--line-height)" highlight={isLineHighlighted(2, highlightLines)} showFinal={showFinal} />
     </div>
   )
 }
 
-function ChartContent2({ highlightLines }: { highlightLines?: number[] }) {
+function ChartContent2({ highlightLines, showFinal = false }: { highlightLines?: number[]; showFinal?: boolean }) {
   return (
     <div>
       <DummyParagraph
         items={[
-          <DummyLine key={0} width="91%" height="var(--line-height)" highlight={highlightLines?.includes(0) || false} />,
-          <DummyLine key={1} width="100%" height="var(--line-height)" highlight={highlightLines?.includes(1) || false} />,
-          <DummyLine key={2} width="75%" height="var(--line-height)" highlight={highlightLines?.includes(2) || false} />,
+          <DummyLine key={0} width="91%" height="var(--line-height)" highlight={isLineHighlighted(0, highlightLines)} showFinal={showFinal} />,
+          <DummyLine key={1} width="100%" height="var(--line-height)" highlight={isLineHighlighted(1, highlightLines)} showFinal={showFinal} />,
+          <DummyLine key={2} width="75%" height="var(--line-height)" highlight={isLineHighlighted(2, highlightLines)} showFinal={showFinal} />,
         ]}
         gap="var(--gap)"
       />
@@ -280,14 +475,14 @@ function ChartContent2({ highlightLines }: { highlightLines?: number[] }) {
   )
 }
 
-function TableContent({ highlightLines }: { highlightLines?: number[] }) {
+function TableContent({ highlightLines, showFinal = false }: { highlightLines?: number[]; showFinal?: boolean }) {
   return (
     <div>
       <DummyParagraph
         items={[
-          <DummyLine key={0} width="100%" height="var(--line-height)" highlight={highlightLines?.includes(0) || false} />,
-          <DummyLine key={1} width="85%" height="var(--line-height)" highlight={highlightLines?.includes(1) || false} />,
-          <DummyLine key={2} width="91%" height="var(--line-height)" highlight={highlightLines?.includes(2) || false} />,
+          <DummyLine key={0} width="100%" height="var(--line-height)" highlight={isLineHighlighted(0, highlightLines)} showFinal={showFinal} />,
+          <DummyLine key={1} width="85%" height="var(--line-height)" highlight={isLineHighlighted(1, highlightLines)} showFinal={showFinal} />,
+          <DummyLine key={2} width="91%" height="var(--line-height)" highlight={isLineHighlighted(2, highlightLines)} showFinal={showFinal} />,
         ]}
         gap="var(--gap)"
       />
@@ -297,10 +492,10 @@ function TableContent({ highlightLines }: { highlightLines?: number[] }) {
           <div className="h-full w-3/4 flex flex-col justify-center p-1" style={{ borderRight: "1px solid var(--light-grey)"}}>
             <DummyParagraph
               items={[
-                <DummyLine key={3} width="100%" height="var(--line-height-small)" highlight={highlightLines?.includes(3) || false} />,
-                <DummyLine key={4} width="93%" height="var(--line-height-small)" highlight={highlightLines?.includes(4) || false} />,
-                <DummyLine key={5} width="81%" height="var(--line-height-small)" highlight={highlightLines?.includes(5) || false} />,
-                <DummyLine key={6} width="100%" height="var(--line-height-small)" highlight={highlightLines?.includes(6) || false} />,
+                <DummyLine key={3} width="100%" height="var(--line-height-small)" highlight={isLineHighlighted(3, highlightLines)} showFinal={showFinal} />,
+                <DummyLine key={4} width="93%" height="var(--line-height-small)" highlight={isLineHighlighted(4, highlightLines)} showFinal={showFinal} />,
+                <DummyLine key={5} width="81%" height="var(--line-height-small)" highlight={isLineHighlighted(5, highlightLines)} showFinal={showFinal} />,
+                <DummyLine key={6} width="100%" height="var(--line-height-small)" highlight={isLineHighlighted(6, highlightLines)} showFinal={showFinal} />,
 
               ]}
               gap="var(--gap-small)"
@@ -309,10 +504,10 @@ function TableContent({ highlightLines }: { highlightLines?: number[] }) {
           <div className="h-full w-1/3 flex flex-col justify-center p-1">
             <DummyParagraph
               items={[
-                <DummyLine key={7} width="100%" height="var(--line-height-small)" highlight={highlightLines?.includes(7) || false} />,
-                <DummyLine key={8} width="65%" height="var(--line-height-small)" highlight={highlightLines?.includes(8) || false} />,
-                <DummyLine key={9} width="100%" height="var(--line-height-small)" highlight={highlightLines?.includes(9) || false} />,
-                <DummyLine key={10} width="80%" height="var(--line-height-small)" highlight={highlightLines?.includes(10) || false} />,
+                <DummyLine key={7} width="100%" height="var(--line-height-small)" highlight={isLineHighlighted(7, highlightLines)} showFinal={showFinal} />,
+                <DummyLine key={8} width="65%" height="var(--line-height-small)" highlight={isLineHighlighted(8, highlightLines)} showFinal={showFinal} />,
+                <DummyLine key={9} width="100%" height="var(--line-height-small)" highlight={isLineHighlighted(9, highlightLines)} showFinal={showFinal} />,
+                <DummyLine key={10} width="80%" height="var(--line-height-small)" highlight={isLineHighlighted(10, highlightLines)} showFinal={showFinal} />,
               ]}
               gap="var(--gap-small)"
             />
@@ -321,3 +516,282 @@ function TableContent({ highlightLines }: { highlightLines?: number[] }) {
       </div>
     </div>
   )}
+
+function TableContent2({ highlightLines, showFinal = false }: { highlightLines?: number[]; showFinal?: boolean }) {
+  return (
+    <div>
+      <DummyParagraph
+        items={[
+          <DummyLine key={0} width="95%" height="var(--line-height)" highlight={isLineHighlighted(0, highlightLines)} showFinal={showFinal} />,
+          <DummyLine key={1} width="78%" height="var(--line-height)" highlight={isLineHighlighted(1, highlightLines)} showFinal={showFinal} />,
+        ]}
+        gap="var(--gap)"
+      />
+      <div className="flex flex-col gap-0" style={{ width: "100%", borderRadius: "var(--image-radius)", border: "1px solid var(--light-grey)", flexShrink: 0 }}>
+        <div className="h-full" style={{ width: "100%", height: "4px", background: "var(--light-grey)", flexShrink: 0 }} />
+        <div className="flex flex-row gap-0" style={{ height: "fit-content"}}>
+          <div className="h-full w-1/3 flex flex-col justify-center p-1" style={{ borderRight: "1px solid var(--light-grey)"}}>
+            <DummyParagraph
+              items={[
+                <DummyLine key={2} width="100%" height="var(--line-height-small)" highlight={isLineHighlighted(2, highlightLines)} showFinal={showFinal} />,
+                <DummyLine key={3} width="72%" height="var(--line-height-small)" highlight={isLineHighlighted(3, highlightLines)} showFinal={showFinal} />,
+                <DummyLine key={4} width="88%" height="var(--line-height-small)" highlight={isLineHighlighted(4, highlightLines)} showFinal={showFinal} />,
+              ]}
+              gap="var(--gap-small)"
+            />
+          </div>
+          <div className="h-full w-1/3 flex flex-col justify-center p-1" style={{ borderRight: "1px solid var(--light-grey)"}}>
+            <DummyParagraph
+              items={[
+                <DummyLine key={5} width="100%" height="var(--line-height-small)" highlight={isLineHighlighted(5, highlightLines)} showFinal={showFinal} />,
+                <DummyLine key={6} width="85%" height="var(--line-height-small)" highlight={isLineHighlighted(6, highlightLines)} showFinal={showFinal} />,
+                <DummyLine key={7} width="92%" height="var(--line-height-small)" highlight={isLineHighlighted(7, highlightLines)} showFinal={showFinal} />,
+              ]}
+              gap="var(--gap-small)"
+            />
+          </div>
+          <div className="h-full w-1/3 flex flex-col justify-center p-1">
+            <DummyParagraph
+              items={[
+                <DummyLine key={8} width="100%" height="var(--line-height-small)" highlight={isLineHighlighted(8, highlightLines)} showFinal={showFinal} />,
+                <DummyLine key={9} width="68%" height="var(--line-height-small)" highlight={isLineHighlighted(9, highlightLines)} showFinal={showFinal} />,
+                <DummyLine key={10} width="95%" height="var(--line-height-small)" highlight={isLineHighlighted(10, highlightLines)} showFinal={showFinal} />,
+              ]}
+              gap="var(--gap-small)"
+            />
+          </div>
+        </div>  
+      </div>
+      <DummyParagraph
+        items={[
+          <DummyLine key={11} width="100%" height="var(--line-height)" highlight={isLineHighlighted(11, highlightLines)} showFinal={showFinal} />,
+          <DummyLine key={12} width="83%" height="var(--line-height)" highlight={isLineHighlighted(12, highlightLines)} showFinal={showFinal} />,
+        ]}
+        gap="var(--gap)"
+      />
+    </div>
+  )}
+
+  function SpreadsheetContent({ highlightLines, showFinal = false }: { highlightLines?: number[]; showFinal?: boolean }) {
+    const rows = [
+      { firstCellBg: "bg-[var(--light-grey)]", rowBg: "" },
+      { firstCellBg: "bg-[var(--light-grey)]", rowBg: "" },
+      { firstCellBg: "bg-[var(--light-grey)]", rowBg: "" },
+      { firstCellBg: "bg-[var(--spreadsheet-green-medium)]", rowBg: "bg-[var(--spreadsheet-green-light)]" },
+      { firstCellBg: "bg-[var(--light-grey)]", rowBg: "" },
+      { firstCellBg: "bg-[var(--light-grey)]", rowBg: "" },
+      { firstCellBg: "bg-[var(--light-grey)]", rowBg: "" },
+      { firstCellBg: "bg-[var(--light-grey)]", rowBg: "" },
+      { firstCellBg: "bg-[var(--light-grey)]", rowBg: "" },
+  
+      { firstCellBg: "bg-[var(--light-grey)]", rowBg: "" },
+      { firstCellBg: "bg-[var(--light-grey)]", rowBg: "" },
+    ]
+    
+    const numCols = 5 // 1 first cell + 4 regular cells
+    const getCellKey = (rowIdx: number, colIdx: number) => rowIdx * numCols + colIdx
+  
+    return (
+      <div className="h-[40px] w-full grid grid-cols-4 border-t border-r border-l border-[var(--medium-light-grey)]">
+        {rows.map((row, rowIdx) => {
+          const firstCellKey = getCellKey(rowIdx, 0)
+          const isFirstCellHighlighted = isLineHighlighted(firstCellKey, highlightLines)
+          const highlightClass = getHighlightClass(isFirstCellHighlighted, showFinal)
+          
+          return (
+            <div
+              key={rowIdx}
+              className={`flex flex-row h-2 border-b border-[var(--medium-light-grey)] ${row.rowBg}`}
+            >
+              <div className={`w-[20%] ${row.firstCellBg} ${highlightClass}`}></div>
+              {[...Array(4)].map((_, colIdx) => {
+                const cellKey = getCellKey(rowIdx, colIdx + 1)
+                const isHighlighted = isLineHighlighted(cellKey, highlightLines)
+                const cellHighlightClass = getHighlightClass(isHighlighted, showFinal)
+                
+                return (
+                  <div 
+                    key={colIdx} 
+                    className={`w-[20%] border-l border-[var(--medium-light-grey)] ${cellHighlightClass}`}
+                  ></div>
+                )
+              })}
+            </div>
+          )
+        })}
+      </div>  
+    )
+  }
+
+  function SpreadsheetContent2({ highlightLines, showFinal = false }: { highlightLines?: number[]; showFinal?: boolean }) {
+    const numRows = 9
+    const numCols = 4 // 1 first cell + 3 regular cells
+    const borderColor = "#E5E7EB" // Explicit color value instead of CSS variable to ensure consistency
+    
+    const getCellKey = (rowIdx: number, colIdx: number) => rowIdx * numCols + colIdx
+    
+    return (
+      <div 
+        className="h-[36px] w-full grid grid-cols-4"
+        style={{ 
+          borderTop: `1px solid ${borderColor}`,
+          borderRight: `1px solid ${borderColor}`,
+          borderLeft: `1px solid ${borderColor}`
+        }}
+      >
+        {[...Array(numRows)].map((_, rowIdx) => {
+          const firstCellKey = getCellKey(rowIdx, 0)
+          const isFirstCellHighlighted = isLineHighlighted(firstCellKey, highlightLines)
+          const firstCellHighlightClass = getHighlightClass(isFirstCellHighlighted, showFinal)
+          
+          return (
+            <div
+              key={rowIdx}
+              className="flex flex-row h-2"
+              style={{
+                borderBottom: `1px solid ${borderColor}`,
+                ...(rowIdx === 0 ? { background: "var(--light-blue)", opacity: 0.7 } : {})
+              }}
+            >
+              <div 
+                className={`w-[25%] ${firstCellHighlightClass}`}
+                style={{
+                  borderRight: `1px solid ${borderColor}`,
+                  ...(rowIdx === 0 ? { background: "var(--light-blue)", opacity: 0.7 } : { background: "var(--chart-color-1)", opacity: 0.6 })
+                }}
+              ></div>
+              {[...Array(numCols - 1)].map((_, colIdx) => {
+                const cellKey = getCellKey(rowIdx, colIdx + 1)
+                const isHighlighted = isLineHighlighted(cellKey, highlightLines)
+                const cellHighlightClass = getHighlightClass(isHighlighted, showFinal)
+                
+                return (
+                  <div 
+                    key={colIdx} 
+                    className={`w-[25%] ${cellHighlightClass}`}
+                    style={{
+                      ...(colIdx > 0 ? { borderLeft: `1px solid ${borderColor}` } : {}),
+                      ...(rowIdx === 0 ? { background: "var(--light-blue)", opacity: 0.7 } : {})
+                    }}
+                  ></div>
+                )
+              })}
+            </div>
+          )
+        })}
+      </div>  
+    )
+  }
+
+function EmailHeader() {
+  return (
+    <div className="flex flex-row items-center gap-[var(--gap-small)] border-b-[0.5px] border-[var(--light-grey)] pb-[var(--padding)]">
+      <MailIcon className="h-3 w-fit text-[var(--dark-grey)]" />
+      <DummyParagraph
+        items={[
+          <DummyLine key="line-1" width="55%" height="var(--line-height-small)" borderRadius="999px" />,
+          <DummyParagraph
+            key="line-2"
+            items={[
+              <DummyLine key="line-2a" width="18%" height="var(--line-height-small)" borderRadius="999px" />,
+              <DummyLine key="line-2b" width="18%" height="var(--line-height-small)" borderRadius="999px" />,
+            ]}
+            gap="var(--gap-small)"
+            direction="row"
+          />,
+        ]}
+        gap="var(--gap-small)"
+        style={{ flex: 1 }}
+      />
+    </div>
+  )
+}
+
+function EmailContent({ highlightLines, showFinal = false }: { highlightLines?: number[]; showFinal?: boolean }) {
+  return (
+    <div className="flex flex-col !h-fit">
+      <EmailHeader />
+
+      <DummyParagraph
+        items={[
+          <DummyLine key={0} width="14%" height="var(--line-height)" borderRadius="999px" highlight={isLineHighlighted(0, highlightLines)} showFinal={showFinal} />,
+          <DummyLine key={1} width="75%" height="var(--line-height)" borderRadius="999px" highlight={isLineHighlighted(1, highlightLines)} showFinal={showFinal} />,
+          <DummyLine key={2} width="100%" height="var(--line-height)" borderRadius="999px" highlight={isLineHighlighted(2, highlightLines)} showFinal={showFinal} />,
+          <DummyLine key={3} width="91%" height="var(--line-height)" borderRadius="999px" highlight={isLineHighlighted(3, highlightLines)} showFinal={showFinal} />,
+          <DummyLine key={4} width="19%" height="var(--line-height)" borderRadius="999px" highlight={isLineHighlighted(4, highlightLines)} showFinal={showFinal} />,
+        ]}
+          gap="var(--gap)"
+          style={{ marginTop: "var(--padding)" }}
+        />
+    </div>
+  )
+}
+
+function EmailContent2({ highlightLines, showFinal = false }: { highlightLines?: number[]; showFinal?: boolean }) {
+  return (
+    <div className="flex flex-col !h-fit">
+      <EmailHeader />
+
+      <DummyParagraph
+        items={[
+          <DummyLine key={0} width="18%" height="var(--line-height)" borderRadius="999px" highlight={isLineHighlighted(0, highlightLines)} showFinal={showFinal} />,
+          <DummyLine key={1} width="88%" height="var(--line-height)" borderRadius="999px" highlight={isLineHighlighted(1, highlightLines)} showFinal={showFinal} />,
+          <DummyLine key={2} width="100%" height="var(--line-height)" borderRadius="999px" highlight={isLineHighlighted(2, highlightLines)} showFinal={showFinal} />,
+          <DummyLine key={3} width="95%" height="var(--line-height)" borderRadius="999px" highlight={isLineHighlighted(3, highlightLines)} showFinal={showFinal} />,
+          <DummyLine key={4} width="67%" height="var(--line-height)" borderRadius="999px" highlight={isLineHighlighted(4, highlightLines)} showFinal={showFinal} />,
+          <DummyLine key={5} width="23%" height="var(--line-height)" borderRadius="999px" highlight={isLineHighlighted(5, highlightLines)} showFinal={showFinal} />,
+          <DummyLine key={6} width="13%" height="var(--line-height)" borderRadius="999px" highlight={isLineHighlighted(6, highlightLines)} showFinal={showFinal} />,
+        ]}
+          gap="var(--gap)"
+          style={{ marginTop: "var(--padding)" }}
+        />
+    </div>
+  )
+}
+
+function EmailContent3({ highlightLines, showFinal = false }: { highlightLines?: number[]; showFinal?: boolean }) {
+  return (
+    <div className="flex flex-col !h-fit">
+      <EmailHeader />
+
+      <DummyParagraph
+        items={[
+          <DummyLine key={0} width="16%" height="var(--line-height)" borderRadius="999px" highlight={isLineHighlighted(0, highlightLines)} showFinal={showFinal} />,
+          <DummyLine key={1} width="100%" height="var(--line-height)" borderRadius="999px" highlight={isLineHighlighted(1, highlightLines)} showFinal={showFinal} />,
+        ]}
+          gap="var(--gap)"
+          style={{ marginTop: "var(--padding)" }}
+        />
+      
+      <DummyParagraph
+        items={[
+          <BulletItem 
+            key={2}
+            lineKey={2} 
+            lineWidth="65%" 
+            highlight={isLineHighlighted(2, highlightLines)} 
+            showFinal={showFinal}
+            borderRadius="999px"
+          />,
+          <BulletItem 
+            key={3}
+            lineKey={3} 
+            lineWidth="52%" 
+            highlight={isLineHighlighted(3, highlightLines)} 
+            showFinal={showFinal}
+            borderRadius="999px"
+          />,
+        ]}
+        gap="var(--gap)"
+        style={{ marginTop: "var(--gap)" }}
+      />
+      <DummyParagraph
+        items={[
+          <DummyLine key={4} width="16%" height="var(--line-height)" borderRadius="999px" highlight={isLineHighlighted(4, highlightLines)} showFinal={showFinal} />,
+        ]}
+          gap="var(--gap)"
+          style={{ marginTop: "var(--padding)" }}
+        />
+    </div>
+  )
+}

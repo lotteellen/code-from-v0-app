@@ -1,8 +1,8 @@
 "use client"
 
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useState, useEffect, useLayoutEffect, useCallback, useRef } from "react"
 import { Button } from "@/components/ui/button"
-import { DATABASE_SEARCH_TIMINGS } from "../helpers/animation-timings"
+import { DATABASE_SEARCH_TIMINGS, RAG_HIGHLIGHT_TIMINGS } from "../helpers/animation-timings"
 import "../helpers/globals.css"
 
 const SearchIcon = ({ isSearching }: { isSearching?: boolean }) => (
@@ -92,6 +92,7 @@ export function DatabaseSearchCard({
   width = "200px",
   onActionButtons,
   onFunctionsReady,
+  showFinal = false,
 }: { 
   darkMode?: boolean; 
   filled?: boolean; 
@@ -102,12 +103,15 @@ export function DatabaseSearchCard({
   onFunctionsReady?: (functions: {
     addText: (text?: string) => void;
     removeHighlight: () => void;
-    search: () => void;
+    search: () => void; // Backward compatibility - defaults to quick
+    quickSearch: () => void;
+    slowSearch: () => void;
     highlightEnterprise: () => void;
     highlightPricing: () => void;
     highlightSMB: () => void;
     reset: () => void;
   }) => void;
+  showFinal?: boolean;
 }) {
   const [displayedText, setDisplayedText] = useState("")
   const [highlighted, setHighlighted] = useState(true)
@@ -121,63 +125,134 @@ export function DatabaseSearchCard({
   const onActionButtonsRef = useRef(onActionButtons)
   const displayedTextRef = useRef("")
 
-  // Keep ref in sync with state
-  useEffect(() => {
-    displayedTextRef.current = displayedText
-  }, [displayedText])
+  // Set final state when showFinal prop is true - use useLayoutEffect to ensure synchronous updates
+  useLayoutEffect(() => {
+    if (showFinal) {
+      setDisplayedText(message)
+      displayedTextRef.current = message
+      setHighlighted(false) // Text should appear normal (not blue)
+      // Set highlights immediately
+      if (message) {
+        setEnterpriseKey(prev => prev + 1)
+        setPricingKey(prev => prev + 1)
+        setSmbKey(prev => prev + 1)
+        setHighlightEnterprise(true)
+        setHighlightPricing(true)
+        setHighlightSMB(true)
+      }
+    }
+  }, [showFinal, message])
+
 
   const handleAddText = useCallback((text?: string) => {
     const textToDisplay = text !== undefined ? text : message
     setDisplayedText(textToDisplay)
     displayedTextRef.current = textToDisplay
-    // Set highlighted to true so text appears blue on enter
-    setHighlighted(true)
-  }, [message])
+    // Set highlighted to true so text appears blue on enter (unless showFinal)
+    if (!showFinal) {
+      setHighlighted(true)
+    } else {
+      // When showFinal, text should appear normal (not blue)
+      setHighlighted(false)
+    }
+  }, [message, showFinal])
 
   const handleHighlight = useCallback(() => {
     setHighlighted(false)
   }, [])
 
-  const handleHighlightEnterprise = useCallback(() => {
-    if (!highlightEnterprise) {
-      // Starting highlight - reset key to restart animation
-      setEnterpriseKey(prev => prev + 1)
-      setHighlightEnterprise(true)
+  // Consolidated highlight function for all word types
+  const handleHighlightWord = useCallback((wordType: "enterprise" | "pricing" | "smb", toggle: boolean = false) => {
+    if (wordType === "enterprise") {
+      if (toggle) {
+        if (!highlightEnterprise) {
+          setEnterpriseKey(prev => prev + 1)
+          setHighlightEnterprise(true)
+        } else {
+          setHighlightEnterprise(false)
+        }
+      } else {
+        setEnterpriseKey(prev => prev + 1)
+        setHighlightEnterprise(true)
+      }
+    } else if (wordType === "pricing") {
+      if (toggle) {
+        if (!highlightPricing) {
+          setPricingKey(prev => prev + 1)
+          setHighlightPricing(true)
+        } else {
+          setHighlightPricing(false)
+        }
+      } else {
+        setPricingKey(prev => prev + 1)
+        setHighlightPricing(true)
+      }
+    } else if (wordType === "smb") {
+      if (toggle) {
+        if (!highlightSMB) {
+          setSmbKey(prev => prev + 1)
+          setHighlightSMB(true)
+        } else {
+          setHighlightSMB(false)
+        }
+      } else {
+        setSmbKey(prev => prev + 1)
+        setHighlightSMB(true)
+      }
+    }
+  }, [highlightEnterprise, highlightPricing, highlightSMB])
+
+  const handleHighlightAll = useCallback(() => {
+    const allHighlighted = highlightEnterprise && highlightPricing && highlightSMB
+    if (!allHighlighted) {
+      // Starting highlights - reset keys to restart animations
+      handleHighlightWord("enterprise", false)
+      handleHighlightWord("pricing", false)
+      handleHighlightWord("smb", false)
     } else {
+      // Turn all off
       setHighlightEnterprise(false)
-    }
-  }, [highlightEnterprise])
-
-  const handleHighlightPricing = useCallback(() => {
-    if (!highlightPricing) {
-      // Starting highlight - reset key to restart animation
-      setPricingKey(prev => prev + 1)
-      setHighlightPricing(true)
-    } else {
       setHighlightPricing(false)
-    }
-  }, [highlightPricing])
-
-  const handleHighlightSMB = useCallback(() => {
-    if (!highlightSMB) {
-      // Starting highlight - reset key to restart animation
-      setSmbKey(prev => prev + 1)
-      setHighlightSMB(true)
-    } else {
       setHighlightSMB(false)
     }
-  }, [highlightSMB])
+  }, [highlightEnterprise, highlightPricing, highlightSMB, handleHighlightWord])
 
-  const handleSearch = useCallback(() => {
-    // Use ref to get the latest value instead of closure value
-    if (!displayedTextRef.current) return
+  const handleSearch = useCallback((speed: "slow" | "quick" = "quick") => {
+    const baseSearchDuration = DATABASE_SEARCH_TIMINGS.SEARCH_ANIMATION_DURATION_MS
+    const quickDuration = baseSearchDuration * 0.5 // Quick is half the duration (1000ms)
     
-    setIsSearching(true)
-    // Simulate search duration
-    setTimeout(() => {
-      setIsSearching(false)
-    }, DATABASE_SEARCH_TIMINGS.SEARCH_ANIMATION_DURATION_MS)
-  }, [])
+    if (speed === "slow") {
+      // SLOW: Requires text to be present, pulse exactly twice (database and text animation)
+      // Does NOT insert text - only quick search does this
+      if (!displayedTextRef.current) return
+      
+      // First pulse (same duration as quick search)
+      setIsSearching(true)
+      setTimeout(() => {
+        setIsSearching(false)
+        // Second pulse immediately after first (no gap)
+        setIsSearching(true)
+        setTimeout(() => {
+          setIsSearching(false)
+        }, quickDuration) // Each pulse is the same duration as quick search
+      }, quickDuration) // First pulse duration (same as quick search)
+    } else {
+      // QUICK: Insert text without focus/unfocus, then immediately search
+      // Add text if not present (without highlight animations)
+      if (!displayedTextRef.current) {
+        const textToDisplay = message
+        setDisplayedText(textToDisplay)
+        displayedTextRef.current = textToDisplay
+        setHighlighted(false) // No highlight, just plain text
+      }
+      
+      // Immediately trigger search (single pulse)
+      setIsSearching(true)
+      setTimeout(() => {
+        setIsSearching(false)
+      }, quickDuration)
+    }
+  }, [message])
 
   const handleReset = useCallback(() => {
     setDisplayedText("")
@@ -198,23 +273,16 @@ export function DatabaseSearchCard({
       onFunctionsReady({
         addText: handleAddText,
         removeHighlight: handleHighlight,
-        search: handleSearch,
-        highlightEnterprise: () => {
-          setEnterpriseKey(prev => prev + 1)
-          setHighlightEnterprise(true)
-        },
-        highlightPricing: () => {
-          setPricingKey(prev => prev + 1)
-          setHighlightPricing(true)
-        },
-        highlightSMB: () => {
-          setSmbKey(prev => prev + 1)
-          setHighlightSMB(true)
-        },
+        search: () => handleSearch("quick"), // Default to quick for backward compatibility
+        quickSearch: () => handleSearch("quick"),
+        slowSearch: () => handleSearch("slow"),
+        highlightEnterprise: () => handleHighlightWord("enterprise", false),
+        highlightPricing: () => handleHighlightWord("pricing", false),
+        highlightSMB: () => handleHighlightWord("smb", false),
         reset: handleReset,
       })
     }
-  }, [onFunctionsReady, handleAddText, handleHighlight, handleSearch, handleReset])
+  }, [onFunctionsReady, handleAddText, handleHighlight, handleSearch, handleReset, handleHighlightWord])
 
   // Normal mode: dark grey fill with white stroke
   // Dark mode: dark grey fill with light grey stroke
@@ -269,10 +337,11 @@ export function DatabaseSearchCard({
           <div className={`bg-[var(--white)] rounded-[var(--border-radius-small)] p-[6px] gap-[6px] flex items-center relative z-10 ${middle ? 'mt-1' : ''}`} style={{ 
             filter: "var(--shadow)",
             width: "196px",
-            minWidth: "196px"
+            minWidth: "196px",
+            height: "21px"
           }}>
             <SearchIcon isSearching={isSearching} />
-            <span className={`styling-text overflow-hidden whitespace-nowrap text-ellipsis line-height-1 ${highlighted ? "text-focus-active" : ""} ${isSearching ? "text-pulse" : ""}`} style={{ position: "relative", display: "inline-block", marginRight: "12px" }}>
+            <span className={`styling-text overflow-hidden whitespace-nowrap text-ellipsis ${highlighted ? "text-focus-active" : ""} ${isSearching ? "text-pulse" : ""}`} style={{ position: "relative", display: "inline-block", marginRight: "8px", lineHeight: "inherit" }}>
               {(highlightEnterprise || highlightPricing || highlightSMB) && displayedText ? (
                 <span style={{ position: "relative", zIndex: 1 }}>
                   {displayedText.split(/(enterprise|pricing|SMB)/i).map((part, index) => {
@@ -288,7 +357,7 @@ export function DatabaseSearchCard({
                     return shouldHighlight ? (
                       <span
                         key={highlightKey}
-                        className="word-highlight-active"
+                        className={showFinal ? "highlight-final highlight-yellow" : "highlight-active highlight-yellow"}
                         style={{
                           position: "relative",
                           zIndex: 1
@@ -323,32 +392,49 @@ export function DatabaseSearchCard({
     if (onActionButtonsRef.current) {
       const buttons = (
         <div className="flex flex-row gap-2">
-          <Button onClick={() => handleAddText()} size="sm">
-            Add Text
+          <Button 
+            onClick={() => {
+              handleAddText()
+              setTimeout(() => {
+                handleHighlight()
+              }, RAG_HIGHLIGHT_TIMINGS.HIGHLIGHT_ANIMATION_DURATION_MS)
+            }} 
+            size="sm"
+          >
+            Add Text & Remove Focus
           </Button>
-          <Button onClick={handleHighlight} size="sm">
-            Remove Focus
+          <Button 
+            onClick={() => handleSearch("quick")} 
+            size="sm" 
+            disabled={isSearching}
+          >
+            Search (Quick)
           </Button>
-          <Button onClick={handleHighlightEnterprise} size="sm" disabled={!displayedText}>
-            Highlight Enterprise
+          <Button 
+            onClick={() => handleSearch("slow")} 
+            size="sm" 
+            disabled={!displayedText || isSearching}
+          >
+            Search (Slow)
           </Button>
-          <Button onClick={handleHighlightPricing} size="sm" disabled={!displayedText}>
-            Highlight Pricing
+          <Button 
+            onClick={() => handleHighlightAll()} 
+            size="sm"
+            disabled={!displayedText}
+          >
+            Highlight
           </Button>
-          <Button onClick={handleHighlightSMB} size="sm" disabled={!displayedText}>
-            Highlight SMB
-          </Button>
-          <Button onClick={handleSearch} size="sm" disabled={!displayedText || isSearching}>
-            Search
-          </Button>
-          <Button onClick={handleReset} size="sm">
+          <Button 
+            onClick={() => handleReset()} 
+            size="sm"
+          >
             Reset
           </Button>
         </div>
       )
       onActionButtonsRef.current(buttons)
     }
-  }, [displayedText, highlighted, highlightEnterprise, highlightPricing, highlightSMB, isSearching, handleAddText, handleHighlight, handleHighlightEnterprise, handleHighlightPricing, handleHighlightSMB, handleSearch, handleReset])
+  }, [displayedText, highlighted, highlightEnterprise, highlightPricing, highlightSMB, isSearching, handleAddText, handleHighlight, handleSearch, handleHighlightAll, handleReset])
 
   return searchBarContent;
 }

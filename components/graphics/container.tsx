@@ -48,26 +48,41 @@ export function Container({
 
   const containerStyle: React.CSSProperties = {
     ...style,
-    height: "500px",
+    height: "300px",
+    width: "600px",
+    margin: "0 auto",
+  }
+
+  const defaultWrapperStyle: React.CSSProperties = {
+    width: "33.333%",
   }
 
   return (
     <div 
-      className={`flex flex-row ${gap} items-start justify-center w-full flex-wrap ${className}`}
+      className={`flex flex-row ${gap} items-start justify-center w-full flex-nowrap ${className}`}
       style={containerStyle}
     >
       {/* Left column */}
-      <LeftWrapper className={leftWrapper?.className} style={leftWrapper?.style}>
+      <LeftWrapper 
+        className={leftWrapper?.className} 
+        style={{ ...defaultWrapperStyle, ...leftWrapper?.style }}
+      >
         {left}
       </LeftWrapper>
 
       {/* Middle column */}
-      <MiddleWrapper className={middleWrapper?.className} style={middleWrapper?.style}>
+      <MiddleWrapper 
+        className={middleWrapper?.className} 
+        style={{ ...defaultWrapperStyle, ...middleWrapper?.style }}
+      >
         {middle}
       </MiddleWrapper>
 
       {/* Right column */}
-      <RightWrapper className={rightWrapper?.className} style={rightWrapper?.style}>
+      <RightWrapper 
+        className={rightWrapper?.className} 
+        style={{ ...defaultWrapperStyle, ...rightWrapper?.style }}
+      >
         {right}
       </RightWrapper>
     </div>

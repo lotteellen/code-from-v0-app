@@ -3,23 +3,53 @@
 import { useState, useRef, useEffect, useCallback } from "react"
 import { AIChatCard } from "@/components/graphics/elements/AI-chat"
 import { PostRequestCard } from "@/components/graphics/elements/post-request-card"
-import { RetrievedSearchCard } from "@/components/graphics/elements/retrieved-search-card"
+import { RetrievedSearchCard, type DocumentItem } from "@/components/graphics/elements/retrieved-search-card"
 import { ReasoningModelCard } from "@/components/graphics/elements/reasoning-model-card"
 import { Button } from "@/components/ui/button"
 import { Container } from "@/components/graphics/container"
-import { POST_REQUEST_TIMINGS, AI_CHAT_TIMINGS } from "@/components/graphics/helpers/animation-timings"
+import { POST_REQUEST_TIMINGS, AI_CHAT_TIMINGS, RAG_HIGHLIGHT_TIMINGS } from "@/components/graphics/helpers/animation-timings"
+
+// Helper function to get highlight lines for each document variant
+const getHighlightLinesForVariant = (variant: string): number[] => {
+  switch (variant.toLowerCase()) {
+    case 'simple':
+      return [...RAG_HIGHLIGHT_TIMINGS.DOCUMENT_HIGHLIGHT_LINES.SIMPLE]
+    case 'bullets':
+      return [...RAG_HIGHLIGHT_TIMINGS.DOCUMENT_HIGHLIGHT_LINES.BULLETS]
+    case 'chart':
+      return [...RAG_HIGHLIGHT_TIMINGS.DOCUMENT_HIGHLIGHT_LINES.CHART]
+    case 'table':
+      return [...RAG_HIGHLIGHT_TIMINGS.DOCUMENT_HIGHLIGHT_LINES.TABLE]
+    case 'image':
+      return [0] // Image variant doesn't have predefined highlights
+    default:
+      return [0]
+  }
+}
+
+// Generate fewer documents for SID (3 documents per query, much less than RAG's 10)
+const generateSIDDocuments = (): DocumentItem[] => {
+  const variants = ["simple", "table", "bullets"]
+  return variants.map((variant, index) => ({
+    id: `sid-doc-${index}`,
+    title: variant,
+    variant: variant,
+    highlightLines: getHighlightLinesForVariant(variant),
+  }))
+}
 
 type ChatGPTFunctions = {
   animateUserMessage: () => Promise<void>;
   unhighlightLines: () => Promise<void>;
   animateAssistantMessage: () => Promise<void>;
+  animateIndicator: () => Promise<void>;
   reset: () => void;
 }
 
 type RetrievedSearchFunctions = {
   addTextAndRemoveHighlight: (text?: string) => Promise<void>;
-  search: () => Promise<void>;
-  highlight: () => Promise<void>;
+  quickSearch: () => Promise<void>;
+  slowSearchAndHighlight: () => Promise<void>;
   reset: () => void;
   setQuery: (text: string) => void;
 }
@@ -49,11 +79,12 @@ export function SIDPipelineCard({
   const reasoningModelFunctionsRef = useRef<ReasoningModelFunctions | null>(null)
   const onActionButtonsRef = useRef(onActionButtons)
   const [isAnimating, setIsAnimating] = useState(false)
-  const [isAssistantAnimating, setIsAssistantAnimating] = useState(false)
   const [chatActive, setChatActive] = useState(false)
   const [reasoningActive, setReasoningActive] = useState(false)
   const [postActive, setPostActive] = useState(false)
   const [retrievalActive, setRetrievalActive] = useState(false)
+  const [showFinal, setShowFinal] = useState(false)
+  const [finalQuery, setFinalQuery] = useState<string>(query)
 
   // Keep ref in sync with prop
   useEffect(() => {
@@ -130,26 +161,16 @@ export function SIDPipelineCard({
       await new Promise(resolve => setTimeout(resolve, POST_REQUEST_TIMINGS.DELAY_AFTER_RETRIEVAL_MS))
 
       // Step 6: After reasoning sequence is done, trigger animate in post request (with SID context)
+      // Post request now handles its own pulsing and calls AI chat animation internally
       // Post becomes active, reasoning becomes inactive
       setChatActive(false)
       setReasoningActive(false)
       setRetrievalActive(false)
       setPostActive(true)
       await postRequest.animate()
-
-      // Short break after post starts pulsating before assistant response begins (same as RAG)
-      setIsAssistantAnimating(true)
-      await new Promise(resolve => setTimeout(resolve, AI_CHAT_TIMINGS.PAUSE_AFTER_POST_PULSATION_MS))
       
-      // Step 7: When done: Trigger assistant in chatgpt (with correct answer)
-      // Chat and post active while assistant message is generated
-      setChatActive(true)
-      setReasoningActive(false)
-      setRetrievalActive(false)
-      setPostActive(true)
-      await chatGPT.animateAssistantMessage()
-      // Post becomes inactive when indicator (check/cross) animation completes
-      setIsAssistantAnimating(false)
+      // Post request animation is complete (including pulsing and AI chat animation)
+      setChatActive(false)
       setPostActive(false)
     } catch (error) {
       console.error("Animation sequence error:", error)
@@ -178,24 +199,41 @@ export function SIDPipelineCard({
     }
     
     setIsAnimating(false)
-    setIsAssistantAnimating(false)
     // Reset all active states
     setChatActive(false)
     setReasoningActive(false)
     setPostActive(false)
     setRetrievalActive(false)
+    setShowFinal(false)
+  }, [])
+
+  const showFinalStage = useCallback(() => {
+    // Set showFinal prop on all components to show final state immediately
+    setShowFinal(true)
+    // Set all stages to active (finished state)
+    setChatActive(true)
+    setReasoningActive(true)
+    setPostActive(true)
+    setRetrievalActive(true)
   }, [])
 
   useEffect(() => {
     if (onActionButtonsRef.current) {
       const buttons = (
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-col">
           <Button 
             onClick={runSequentialAnimation} 
             size="sm"
             disabled={isAnimating}
           >
             {isAnimating ? "Animating..." : "Run Full Sequence"}
+          </Button>
+          <Button 
+            onClick={showFinalStage} 
+            size="sm"
+            variant="default"
+          >
+            Show Final Stage
           </Button>
           <Button 
             onClick={handleReset} 
@@ -209,23 +247,50 @@ export function SIDPipelineCard({
       )
       onActionButtonsRef.current(buttons)
     }
-  }, [runSequentialAnimation, isAnimating, handleReset])
+  }, [runSequentialAnimation, isAnimating, handleReset, showFinalStage, onActionButtons])
 
   return (
     <Container
       left={
-        <AIChatCard 
-          isCorrect={true}
-          onFunctionsReady={handleChatGPTFunctionsReady}
-          query={query}
-        />
+        <PostRequestCard 
+              showContext={true} 
+              withSID={true} 
+              onFunctionsReady={handlePostRequestFunctionsReady}
+              isActive={postActive}
+              showFinal={showFinal}
+              onToggleFinal={() => setShowFinal(!showFinal)}
+              onReset={() => setShowFinal(false)}
+              onAnimateAssistantMessage={async () => {
+                // When post request triggers AI chat animation, activate chat
+                setChatActive(true)
+                const chatGPT = chatGPTFunctionsRef.current
+                if (chatGPT) {
+                  await chatGPT.animateAssistantMessage()
+                }
+                setChatActive(false)
+              }}
+            />
       }
       middle={
         <div className="flex flex-col gap-8 items-center h-full justify-between">
+         <AIChatCard 
+          isCorrect={true}
+          onFunctionsReady={handleChatGPTFunctionsReady}
+          query={query}
+          isActive={chatActive}
+          showFinal={showFinal}
+        />
+                  <div className="flex items-end">
+
           <ReasoningModelCard 
             onActionButtons={undefined} 
             onFunctionsReady={handleReasoningModelFunctionsReady}
             query={query}
+            isActive={reasoningActive}
+            showFinal={showFinal}
+            onFinalQueryChange={(finalQueryText: string) => {
+              setFinalQuery(finalQueryText)
+            }}
             onBeforeQueryText={async () => {
               // Unhighlight lines in AI chat right before query text is inserted
               const chatGPT = chatGPTFunctionsRef.current
@@ -236,26 +301,22 @@ export function SIDPipelineCard({
             onRetrievalReady={async (stepIndex: number, retrievalText: string) => {
               // Each time a "wait" is called within the reasoning model (retrieval needed),
               // trigger a retrieval in the retrieved search
-              // Retrieval becomes active during this process
+              // Retrieval becomes active during this process, reasoning becomes inactive
+              setReasoningActive(false)
               setRetrievalActive(true)
               const retrievedSearch = retrievedSearchFunctionsRef.current
               if (retrievedSearch) {
                 // First: insert text, unhighlight, and start retrieval
                 await retrievedSearch.addTextAndRemoveHighlight(retrievalText)
-                // Then: perform the search
-                await retrievedSearch.search()
+                // Then: perform quick search (fast, no highlights)
+                await retrievedSearch.quickSearch()
               }
-              // Retrieval becomes inactive after search completes
+              // Retrieval becomes inactive after search completes, reasoning becomes active again
               setRetrievalActive(false)
+              setReasoningActive(true)
             }}
           />
-          <div className="flex items-end">
-            <PostRequestCard 
-              showContext={true} 
-              withSID={true} 
-              onFunctionsReady={handlePostRequestFunctionsReady}
-              pulsate={isAssistantAnimating}
-            />
+            
           </div>
         </div>
       }
@@ -263,15 +324,28 @@ export function SIDPipelineCard({
         <RetrievedSearchCard 
           onFunctionsReady={handleRetrievedSearchFunctionsReady}
           highlightDatabase={false}
-          query={query}
+          query={showFinal ? finalQuery : query}
           darkMode={true}
+          isActive={retrievalActive}
+          showFinal={showFinal}
+          documents={generateSIDDocuments()}
         />
       }
       middleWrapper={{
-        className: "h-full flex"
+        style: { 
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "flex-end",
+          height: "100%"
+        }
       }}
       rightWrapper={{
-        style: { width: "200px" }
+        style: { 
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "flex-end",
+          height: "100%"
+        }
       }}
     />
   )

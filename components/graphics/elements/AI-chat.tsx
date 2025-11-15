@@ -40,7 +40,7 @@ export const userMessage = ({
               display: "inline-flex",
             }}
           >
-            <div className="styling-text" style={{ whiteSpace: "normal", lineHeight: "1.3", position: "relative" }}>
+            <div className="styling-text" style={{ whiteSpace: "normal", position: "relative" }}>
               <div style={{ position: "relative", display: "block" }}>
                 <span className={highlightLine1 ? "text-focus-active" : ""} style={{ position: "relative", display: "inline-block" }}>
                   <span style={{ position: "relative", zIndex: 1 }}>
@@ -71,6 +71,7 @@ export function AIChatCard({
   width = "200px",
   query,
   isActive = true,
+  showFinal = false,
 }: { 
   title?: string; 
   answer?: string; 
@@ -80,36 +81,24 @@ export function AIChatCard({
     animateUserMessage: () => Promise<void>;
     unhighlightLines: () => Promise<void>;
     animateAssistantMessage: () => Promise<void>;
+    animateIndicator: () => Promise<void>;
     reset: () => void;
   }) => void;
   width?: string;
   query?: string;
   isActive?: boolean;
+  showFinal?: boolean;
 }) {
   // Parse query into two lines if provided, otherwise use defaults
-  // Try to split at natural break points (after "pricing", "before", etc.)
-  const getQueryLines = (queryText: string): [string, string] => {
-    const words = queryText.split(/\s+/);
-    const midPoint = Math.ceil(words.length / 2);
-    
-    // Try to find a natural break point near the middle
-    const breakWords = ['before', 'after', 'when', 'where', 'how', 'why'];
-    let splitIndex = midPoint;
-    
-    for (let i = Math.max(0, midPoint - 3); i < Math.min(words.length, midPoint + 3); i++) {
-      if (breakWords.some(bw => words[i].toLowerCase() === bw.toLowerCase())) {
-        splitIndex = i;
-        break;
-      }
-    }
-    
-    const firstLine = words.slice(0, splitIndex).join(' ');
-    const secondLine = words.slice(splitIndex).join(' ');
-    return [firstLine, secondLine];
-  };
-  
   const [firstLine, secondLine] = query 
-    ? getQueryLines(query)
+    ? (() => {
+        const words = query.split(/\s+/);
+        const midPoint = Math.ceil(words.length / 2);
+        return [
+          words.slice(0, midPoint).join(' '),
+          words.slice(midPoint).join(' ')
+        ];
+      })()
     : [DEFAULT_FIRST_LINE, DEFAULT_SECOND_LINE];
   // Determine answer based on isCorrect if answer prop is not provided
   const displayAnswer = answer ?? (isCorrect ? "$99/month/seat + $500 setup" : "$499 / month / seat");
@@ -125,11 +114,25 @@ export function AIChatCard({
   const [revealLine3, setRevealLine3] = useState(false)
   const [showIndicator, setShowIndicator] = useState(false)
   const [isIndicatorAnimating, setIsIndicatorAnimating] = useState(false)
-  const userTimeoutsRef = React.useRef<NodeJS.Timeout[]>([])
-  const assistantTimeoutsRef = React.useRef<NodeJS.Timeout[]>([])
-  const indicatorTimeoutRef = React.useRef<NodeJS.Timeout | null>(null)
+  const allTimeoutsRef = React.useRef<NodeJS.Timeout[]>([])
   const indicatorRef = React.useRef<HTMLDivElement>(null)
   const onActionButtonsRef = React.useRef(onActionButtons)
+
+  // Set final state when showFinal prop is true
+  useEffect(() => {
+    if (showFinal) {
+      setShowUserMessage(true)
+      setUserMessageAnimate(false)
+      setHighlightLine1(false)
+      setHighlightLine2(false)
+      setRevealLine1(true)
+      setRevealLine2(true)
+      setRevealAnswer(true)
+      setRevealLine3(true)
+      setShowIndicator(true)
+      setIsIndicatorAnimating(false)
+    }
+  }, [showFinal])
 
   // Keep ref in sync with prop
   useEffect(() => {
@@ -139,7 +142,6 @@ export function AIChatCard({
   // Calculate path lengths for animation when indicator is shown
   useEffect(() => {
     if (showIndicator && indicatorRef.current) {
-      // Use requestAnimationFrame to ensure SVG is rendered
       requestAnimationFrame(() => {
         const svg = indicatorRef.current?.querySelector('svg')
         if (svg) {
@@ -149,31 +151,24 @@ export function AIChatCard({
             const pathElement = path as SVGPathElement
             const length = pathElement.getTotalLength()
             if (length > 0) {
-              // Set individual path length as CSS variable for animation
               path.style.setProperty('--path-length', `${length}`)
               
-              // For checkmark, reverse the path to animate from the end
+              // For checkmark, reverse the path to animate from bottom-left to top-right
               if (isCheck) {
-                const pathData = pathElement.getAttribute('d')
-                if (pathData) {
-                  // Sample points along the path
-                  const points: { x: number; y: number }[] = []
-                  const numSamples = 100
-                  for (let i = 0; i <= numSamples; i++) {
-                    const point = pathElement.getPointAtLength((length * i) / numSamples)
-                    points.push({ x: point.x, y: point.y })
-                  }
-                  
-                  // Reverse the points and rebuild as a simple line path
-                  points.reverse()
-                  
-                  if (points.length >= 2) {
-                    let reversedPath = `M ${points[0].x} ${points[0].y}`
-                    for (let i = 1; i < points.length; i++) {
-                      reversedPath += ` L ${points[i].x} ${points[i].y}`
-                    }
-                    pathElement.setAttribute('d', reversedPath)
-                  }
+                const numSamples = 50 // Reduced from 100 for better performance
+                const points: { x: number; y: number }[] = []
+                for (let i = 0; i <= numSamples; i++) {
+                  const point = pathElement.getPointAtLength((length * i) / numSamples)
+                  points.push({ x: point.x, y: point.y })
+                }
+                
+                // Reverse and rebuild path
+                if (points.length >= 2) {
+                  const reversedPath = points
+                    .reverse()
+                    .map((p, i) => i === 0 ? `M ${p.x} ${p.y}` : `L ${p.x} ${p.y}`)
+                    .join(' ')
+                  pathElement.setAttribute('d', reversedPath)
                 }
               }
             }
@@ -186,21 +181,16 @@ export function AIChatCard({
   // Cleanup timeouts on unmount
   useEffect(() => {
     return () => {
-      userTimeoutsRef.current.forEach(timeout => clearTimeout(timeout))
-      userTimeoutsRef.current = []
-      assistantTimeoutsRef.current.forEach(timeout => clearTimeout(timeout))
-      assistantTimeoutsRef.current = []
-      if (indicatorTimeoutRef.current) {
-        clearTimeout(indicatorTimeoutRef.current)
-      }
+      allTimeoutsRef.current.forEach(timeout => clearTimeout(timeout))
+      allTimeoutsRef.current = []
     }
   }, [])
 
   const animateUserMessage = useCallback((): Promise<void> => {
     return new Promise((resolve) => {
       // Clear any existing timeouts
-      userTimeoutsRef.current.forEach(timeout => clearTimeout(timeout))
-      userTimeoutsRef.current = []
+      allTimeoutsRef.current.forEach(timeout => clearTimeout(timeout))
+      allTimeoutsRef.current = []
 
       if (isUserAnimating) {
         // Reset animation
@@ -234,10 +224,10 @@ export function AIChatCard({
           resolve()
         }, AI_CHAT_TIMINGS.USER_MESSAGE_ANIMATION_MS)
         
-        userTimeoutsRef.current.push(animationTimeout)
+        allTimeoutsRef.current.push(animationTimeout)
       }, AI_CHAT_TIMINGS.USER_MESSAGE_START_DELAY_MS)
       
-      userTimeoutsRef.current = [startDelayTimeout]
+      allTimeoutsRef.current.push(startDelayTimeout)
     })
   }, [isUserAnimating])
 
@@ -253,12 +243,8 @@ export function AIChatCard({
   const animateAssistantMessage = useCallback((): Promise<void> => {
     return new Promise((resolve) => {
       // Clear any existing timeouts
-      assistantTimeoutsRef.current.forEach(timeout => clearTimeout(timeout))
-      assistantTimeoutsRef.current = []
-      if (indicatorTimeoutRef.current) {
-        clearTimeout(indicatorTimeoutRef.current)
-        indicatorTimeoutRef.current = null
-      }
+      allTimeoutsRef.current.forEach(timeout => clearTimeout(timeout))
+      allTimeoutsRef.current = []
 
       if (isAssistantAnimating) {
         // Reset animation
@@ -267,8 +253,6 @@ export function AIChatCard({
         setRevealLine2(false)
         setRevealAnswer(false)
         setRevealLine3(false)
-        setShowIndicator(false)
-        setIsIndicatorAnimating(false)
         resolve()
         return
       }
@@ -278,8 +262,6 @@ export function AIChatCard({
       setRevealLine2(false)
       setRevealAnswer(false)
       setRevealLine3(false)
-      setShowIndicator(false)
-      setIsIndicatorAnimating(false)
       
       // Start revealing assistant lines sequentially
       const timeout1 = setTimeout(() => {
@@ -298,38 +280,51 @@ export function AIChatCard({
         setRevealLine3(true)
       }, AI_CHAT_TIMINGS.ASSISTANT_LINE_3_DELAY_MS)
       
-      // Wait for line3 animation to complete before showing indicator
+      // Wait for line3 animation to complete
       const timeout5 = setTimeout(() => {
         setIsAssistantAnimating(false)
-        
-        // Automatically trigger indicator animation after ALL assistant animations complete
-        setIsIndicatorAnimating(true)
-        const indicatorTimeout = setTimeout(() => {
-          setShowIndicator(true)
-          // Mark indicator animation as complete after it finishes
-          const completeTimeout = setTimeout(() => {
-            setIsIndicatorAnimating(false)
-            resolve()
-          }, AI_CHAT_TIMINGS.INDICATOR_DURATION_MS)
-          indicatorTimeoutRef.current = completeTimeout
-        }, 0)
-        indicatorTimeoutRef.current = indicatorTimeout
-      }, AI_CHAT_TIMINGS.INDICATOR_START_DELAY_MS)
+        resolve()
+      }, AI_CHAT_TIMINGS.ASSISTANT_LINE_3_DELAY_MS + 400) // Wait for line3 animation to complete
       
-      assistantTimeoutsRef.current = [timeout1, timeout2, timeout3, timeout4, timeout5]
+      allTimeoutsRef.current = [timeout1, timeout2, timeout3, timeout4, timeout5]
     })
   }, [isAssistantAnimating])
 
+  const animateIndicator = useCallback((): Promise<void> => {
+    return new Promise((resolve) => {
+      // Clear any existing timeouts
+      allTimeoutsRef.current.forEach(timeout => clearTimeout(timeout))
+      allTimeoutsRef.current = []
+
+      if (isIndicatorAnimating) {
+        // Reset animation
+        setShowIndicator(false)
+        setIsIndicatorAnimating(false)
+        resolve()
+        return
+      }
+
+      setIsIndicatorAnimating(true)
+      setShowIndicator(false)
+      
+      // Trigger indicator animation
+      const indicatorTimeout = setTimeout(() => {
+        setShowIndicator(true)
+        // Mark indicator animation as complete after it finishes
+        const completeTimeout = setTimeout(() => {
+          setIsIndicatorAnimating(false)
+          resolve()
+        }, AI_CHAT_TIMINGS.INDICATOR_DURATION_MS)
+        allTimeoutsRef.current.push(completeTimeout)
+      }, 0)
+      allTimeoutsRef.current.push(indicatorTimeout)
+    })
+  }, [isIndicatorAnimating])
+
   const resetAll = useCallback(() => {
     // Clear all timeouts
-    userTimeoutsRef.current.forEach(timeout => clearTimeout(timeout))
-    userTimeoutsRef.current = []
-    assistantTimeoutsRef.current.forEach(timeout => clearTimeout(timeout))
-    assistantTimeoutsRef.current = []
-    if (indicatorTimeoutRef.current) {
-      clearTimeout(indicatorTimeoutRef.current)
-      indicatorTimeoutRef.current = null
-    }
+    allTimeoutsRef.current.forEach(timeout => clearTimeout(timeout))
+    allTimeoutsRef.current = []
     
     // Reset all animation states
     setIsUserAnimating(false)
@@ -351,11 +346,20 @@ export function AIChatCard({
   const content = (
     <div className="h-full justify-between">
     <div className="h-fit flex flex-col gap-[var(--padding)]">
-      <div style={{ display: showUserMessage ? undefined : 'none' }}>
+      {/* User message container - always in DOM when showFinal is true to prevent layout shift */}
+      <div style={{ 
+        // Always render container when showFinal is true to reserve space
+        display: showFinal ? 'block' : (showUserMessage ? 'block' : 'none'),
+        // When showFinal is true, container is always visible and takes up space
+        visibility: showFinal ? 'visible' : (showUserMessage ? 'visible' : 'hidden'),
+        opacity: showFinal ? 1 : (showUserMessage ? 1 : 0),
+        // Reserve minimum height when showFinal is true to prevent layout shift
+        minHeight: showFinal ? '32px' : undefined,
+      }}>
         {userMessage({
           highlightLine1: highlightLine1,
           highlightLine2: highlightLine2,
-          animate: userMessageAnimate,
+          animate: showFinal ? false : userMessageAnimate,
           firstLine,
           secondLine,
         })}
@@ -366,9 +370,9 @@ export function AIChatCard({
             key="line1" 
             width="100%" 
             height="var(--line-height-big)" 
-            className={revealLine1 ? "assistant-line-reveal" : ""}
+            className={showFinal ? "" : (revealLine1 ? "assistant-line-reveal" : "")}
             style={{ 
-              clipPath: revealLine1 ? undefined : "inset(0 100% 0 0)",
+              clipPath: (showFinal || revealLine1) ? undefined : "inset(0 100% 0 0)",
               overflow: "hidden"
             }}
           />,
@@ -376,17 +380,17 @@ export function AIChatCard({
             key="line2" 
             width="85%" 
             height="var(--line-height-big)" 
-            className={revealLine2 ? "assistant-line-reveal" : ""}
+            className={showFinal ? "" : (revealLine2 ? "assistant-line-reveal" : "")}
             style={{ 
-              clipPath: revealLine2 ? undefined : "inset(0 100% 0 0)",
+              clipPath: (showFinal || revealLine2) ? undefined : "inset(0 100% 0 0)",
               overflow: "hidden"
             }}
           />,
           <span 
             key="answer" 
-            className={`styling-text line-height-1 font-bold ${revealAnswer ? "assistant-line-reveal" : ""}`}
+            className={`styling-text font-bold ${showFinal ? "" : (revealAnswer ? "assistant-line-reveal" : "")}`}
             style={{ 
-              clipPath: revealAnswer ? undefined : "inset(0 100% 0 0)",
+              clipPath: (showFinal || revealAnswer) ? undefined : "inset(0 100% 0 0)",
               display: "inline-block",
               position: "relative",
               overflow: "hidden",
@@ -399,9 +403,9 @@ export function AIChatCard({
             key="line3" 
             width="100%" 
             height="var(--line-height-big)" 
-            className={revealLine3 ? "assistant-line-reveal" : ""}
+            className={showFinal ? "" : (revealLine3 ? "assistant-line-reveal" : "")}
             style={{ 
-              clipPath: revealLine3 ? undefined : "inset(0 100% 0 0)",
+              clipPath: (showFinal || revealLine3) ? undefined : "inset(0 100% 0 0)",
               overflow: "hidden"
             }}
           />,
@@ -422,33 +426,33 @@ export function AIChatCard({
         animateUserMessage,
         unhighlightLines,
         animateAssistantMessage,
+        animateIndicator,
         reset: resetAll,
       })
     }
-  }, [onFunctionsReady, animateUserMessage, unhighlightLines, animateAssistantMessage, resetAll])
+  }, [onFunctionsReady, animateUserMessage, unhighlightLines, animateAssistantMessage, animateIndicator, resetAll])
 
+  // Generate debug buttons if onActionButtons is provided
   useEffect(() => {
-    if (onActionButtonsRef.current) {
-      const buttons = (
-        <div className="flex gap-2">
+    if (!onActionButtonsRef.current) return
     
-          <Button onClick={() => animateUserMessage()} size="sm">
-            {isUserAnimating ? "Stop User" : "Animate User + Highlight"}
-          </Button>
-          <Button onClick={() => unhighlightLines()} size="sm">
-            Unhighlight
-          </Button>
-          <Button onClick={() => animateAssistantMessage()} size="sm">
-            {isAssistantAnimating ? "Stop Assistant" : "Animate Assistant"}
-          </Button>
-          <Button onClick={resetAll} size="sm" variant="outline">
-            Reset All
-          </Button>
-        </div>
-      )
-      onActionButtonsRef.current(buttons)
-    }
-  }, [isUserAnimating, isAssistantAnimating, animateUserMessage, unhighlightLines, animateAssistantMessage, resetAll])
+    const buttons = (
+      <div className="flex gap-2">
+        <Button onClick={animateUserMessage} size="sm">
+          {isUserAnimating ? "Stop User" : "Animate User + Highlight"}
+        </Button>
+        <Button onClick={unhighlightLines} size="sm">Unhighlight</Button>
+        <Button onClick={animateAssistantMessage} size="sm">
+          {isAssistantAnimating ? "Stop Assistant" : "Animate Assistant"}
+        </Button>
+        <Button onClick={animateIndicator} size="sm">
+          {isIndicatorAnimating ? "Stop Indicator" : "Animate Check/Cross"}
+        </Button>
+        <Button onClick={resetAll} size="sm" variant="outline">Reset All</Button>
+      </div>
+    )
+    onActionButtonsRef.current(buttons)
+  }, [isUserAnimating, isAssistantAnimating, isIndicatorAnimating, animateUserMessage, unhighlightLines, animateAssistantMessage, animateIndicator, resetAll])
 
   return (
     <div className="relative" style={{ width: width, opacity: isActive ? 1 : "var(--inactive)" }}>
@@ -456,7 +460,7 @@ export function AIChatCard({
       {showIndicator && (
         <div 
           ref={indicatorRef}
-          className="absolute flex items-center justify-center indicator-path-reveal"
+          className={`absolute flex items-center justify-center ${showFinal ? "" : "indicator-path-reveal"}`}
           style={{
             bottom: "-16px",
             right: "-16px",

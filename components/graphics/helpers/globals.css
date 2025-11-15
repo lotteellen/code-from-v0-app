@@ -47,13 +47,6 @@
 
   --fold-size: 20px;
   --traffic-light-size: 4px;
-
-  /* Syntax highlighting colors - optimized for readability from distance */
-  --syntax-keyword: #8B5CF6; /* Vibrant purple */
-  --syntax-variable: #1F2937; /* Dark grey with better contrast */
-  --syntax-property: #06B6D4; /* Bright cyan */
-  --syntax-string: #F97316; /* Vibrant orange */
-  --syntax-punctuation: #4B5563; /* Medium-dark grey for readability */
 }
 
 @keyframes spinner {
@@ -82,7 +75,7 @@
 
 .styling-text {
   font-size: 6px;
-  line-height: 1;
+  line-height: inherit;
   color: var(--dark-grey);
 }
 
@@ -246,11 +239,11 @@
 }
 
 /* Post request syntax highlighting */
-.syntax-keyword { color: var(--syntax-keyword); }
-.syntax-variable { color: var(--syntax-variable); }
-.syntax-property { color: var(--syntax-property); }
-.syntax-string { color: var(--syntax-string); }
-.syntax-punctuation { color: var(--syntax-punctuation); }
+.syntax-keyword { color: var(--medium-grey); }
+.syntax-variable { color: var(--dark-grey); }
+.syntax-property { color: var(--medium-dark-grey); }
+.syntax-string { color: var(--medium-dark-grey); }
+.syntax-punctuation { color: var(--medium-grey); }
 
 /* Highlight animation for dummy lines */
 @keyframes highlightLeftToRight {
@@ -279,6 +272,24 @@
   pointer-events: none;
 }
 
+/* Final highlight state - no animation, immediately visible */
+.dummy-highlight-final {
+  position: relative;
+  overflow: hidden;
+}
+
+.dummy-highlight-final::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: var(--bright-yellow);
+  clip-path: inset(0 0% 0 0);
+  pointer-events: none;
+}
+
 /* Text focus - behind text, see-through, no rounded corners */
 .text-focus-active {
   position: relative;
@@ -299,8 +310,8 @@
   pointer-events: none;
 }
 
-/* Word highlight - left to right animation */
-.word-highlight-active {
+/* Base highlight - left to right animation */
+.highlight-active {
   position: relative;
   overflow: visible;
   padding: 0;
@@ -308,19 +319,83 @@
   display: inline;
   line-height: inherit;
   vertical-align: baseline;
+  z-index: 1;
 }
 
-.word-highlight-active::after {
+.highlight-active::after {
   content: "";
   position: absolute;
   top: 0;
   left: -1px;
   width: calc(100% + 2px);
   height: 100%;
-  background: var(--bright-yellow);
+  background: transparent;
   animation: highlightLeftToRight 0.8s ease-out forwards;
   pointer-events: none;
   z-index: -1;
+}
+
+/* Color modifiers for highlight-active */
+.highlight-active.highlight-yellow::after {
+  background: var(--bright-yellow) !important;
+}
+
+.highlight-active.highlight-blue::after {
+  background: var(--light-blue) !important;
+}
+
+.highlight-active.highlight-green::after {
+  background: rgba(40, 200, 64, 0.3) !important;
+}
+
+/* Final highlight state - no animation, immediately visible */
+.highlight-final {
+  position: relative;
+  overflow: visible;
+  padding: 0;
+  margin: 0;
+  display: inline;
+  line-height: inherit;
+  vertical-align: baseline;
+  z-index: 1;
+}
+
+.highlight-final::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -1px;
+  width: calc(100% + 2px);
+  height: 100%;
+  background: transparent;
+  clip-path: inset(0 0% 0 0);
+  pointer-events: none;
+  z-index: -1;
+  animation: none;
+}
+
+/* Color modifiers for highlight-final */
+.highlight-final.highlight-yellow::after {
+  background: var(--bright-yellow) !important;
+}
+
+.highlight-final.highlight-blue::after {
+  background: var(--light-blue) !important;
+}
+
+.highlight-final.highlight-green::after {
+  background: rgba(40, 200, 64, 0.3) !important;
+}
+
+/* Offset modifier for post request positioning */
+.highlight-active.highlight-offset::after,
+.highlight-final.highlight-offset::after {
+  height: calc(100% + 0.5px);
+  top: 0;
+}
+
+.highlight-final.highlight-offset::after {
+  transform: translateY(0.5px);
 }
 
 /* User message fade-in from below */
@@ -353,50 +428,6 @@
   position: relative;
   overflow: hidden;
   animation: revealLeftToRight 0.4s ease-out forwards;
-}
-
-/* Highlight animation for post request - uses same animation as word-highlight */
-.highlight-animate {
-  position: relative;
-  overflow: visible;
-  padding: 0;
-  margin: 0;
-  display: inline;
-  line-height: inherit;
-  vertical-align: baseline;
-  z-index: 1;
-}
-
-.highlight-animate::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: -1px;
-  width: calc(100% + 2px);
-  height: 100%;
-  background: transparent;
-  animation: highlightLeftToRight 0.8s ease-out forwards;
-  pointer-events: none;
-  z-index: -1;
-}
-
-.highlight-animate.highlight-context::after {
-  background: rgba(40, 200, 64, 0.3) !important;
-}
-
-.highlight-animate.highlight-documents::after {
-  background: var(--bright-yellow) !important;
-}
-
-.highlight-animate.highlight-message::after {
-  background: var(--light-blue) !important;
-}
-
-.highlight-animate.highlight-context.highlight-offset::after,
-.highlight-animate.highlight-documents.highlight-offset::after,
-.highlight-animate.highlight-message.highlight-offset::after {
-  height: calc(100% + 0.5px);
-  top: 0.5px;
 }
 
 .baby-document-wrapper {
@@ -515,16 +546,16 @@
 @keyframes browserWindowPulsate {
   0%, 100% {
     transform: scale(1);
-    filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.05)) drop-shadow(0 1px 2px rgba(0, 0, 0, 0.03));
+    opacity: 1;
   }
   50% {
-    transform: scale(1.02);
-    filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.1)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.06));
+    transform: scale(1.05);
+    opacity: 0.85;
   }
 }
 
 .browser-window-pulsate {
-  animation: browserWindowPulsate 1.5s ease-in-out infinite;
+  animation: browserWindowPulsate 1s ease-in-out infinite;
 }
 
 @keyframes indicatorFadeIn {
