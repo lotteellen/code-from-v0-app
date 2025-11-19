@@ -1,0 +1,637 @@
+:root {
+  --white: white;
+  --very-light-grey: #f9fafb;
+  --light-grey: #f3f4f6;
+  --medium-light-grey: #e5e7eb;
+  --medium-grey: #d1d5db;
+  --medium-dark-grey: #b0b5c0;
+  --dark-grey: #787f8c;
+
+  --light-blue: #e3f2fd;
+
+  --traffic-light-red: #ff5f57;
+  --traffic-light-yellow: #febc2e;
+  --traffic-light-green: #28c840;
+
+  --spreadsheet-green-light: #bbf7d0;
+  --spreadsheet-green-medium: #86efac;
+
+  --bright-yellow: #fffc00;
+
+  --chart-color-1: #60a5fa;
+  --chart-color-2: #34d399;
+  --chart-color-3: #f472b6;
+  --chart-color-4: #a78bfa;
+  --chart-color-5: #22d3ee;
+  --chart-color-6: #ec4899;
+
+  --shadow: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.05)) drop-shadow(0 1px 2px rgba(0, 0, 0, 0.03));
+  --inactive: 0.2;
+
+  --padding: 8px;
+  --padding-vertical: 12px;
+
+  --border-radius: 6px;
+  --border-radius-small: 3px;
+  --image-radius: 1px;
+
+  --line-height: 3px;
+  --line-height-small: 2.5px;
+  --line-height-big: 5.5px;
+  --gap: 5px;
+  --gap-small: 3px;
+  --gap-big: 6px;
+
+  --circle-size: 4px;
+
+  --fold-size: 20px;
+  --traffic-light-size: 4px;
+
+  /* Opacity transition duration for isActive prop */
+  --opacity-transition-duration: 0.4s;
+  --opacity-transition-timing: ease-in-out;
+}
+
+@keyframes spinner {
+  from {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(0.5);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+.styling-outer {
+  height: 100%;
+  background-color: var(--white);
+}
+
+.styling-title {
+  font-weight: 500;
+  font-size: 7px;
+  line-height: 1;
+  color: var(--dark-grey);
+}
+
+.styling-text {
+  font-size: 6px;
+  line-height: inherit;
+  color: var(--dark-grey);
+}
+
+.document-outer {
+  position: relative;
+  overflow: visible;
+  filter: var(--shadow);
+}
+
+.document {
+  position: relative;
+  border-radius: var(--border-radius);
+  overflow: visible;
+  padding: var(--padding);
+}
+
+.document-content > * {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 100%;
+}
+
+.fold-corner-clip {
+  clip-path: polygon(
+    0 0,
+    calc(100% - var(--fold-size)) 0,
+    100% var(--fold-size),
+    100% 100%,
+    0 100%
+  );
+  border-radius: var(--border-radius) 0 var(--border-radius) var(--border-radius);
+}
+
+.fold-corner-clip::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: var(--fold-size);
+  height: var(--fold-size);
+  background: var(--light-grey);
+  clip-path: polygon(0 0, 100% 0, 100% 100%);
+  border-bottom-left-radius: var(--border-radius);
+  z-index: 10;
+}
+
+.fold-corner-clip::after {
+  content: "";
+  position: absolute;
+  top: -1px;
+  right: -1px;
+  width: var(--fold-size);
+  height: var(--fold-size);
+  border: 1px solid var(--light-grey);
+  background: var(--light-grey);
+  clip-path: polygon(0 0, 100% 100%, 0 100%);
+  border-radius: 0 0 0 var(--border-radius);
+  pointer-events: none;
+  z-index: 5;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+@keyframes databasePulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.85;
+  }
+}
+
+@keyframes databasePulseWhite {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+    filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.05)) drop-shadow(0 1px 2px rgba(0, 0, 0, 0.03));
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.9;
+    filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.05)) drop-shadow(0 1px 2px rgba(0, 0, 0, 0.03))
+      drop-shadow(0 0 12px rgba(209, 213, 219, 0.8)) drop-shadow(0 0 20px rgba(209, 213, 219, 0.4));
+  }
+}
+
+.database-pulse-white {
+  animation: databasePulseWhite 1s ease-in-out infinite;
+}
+
+@keyframes textShimmer {
+  0% {
+    left: -35%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
+.database-pulse {
+  animation: databasePulse 1s ease-in-out infinite;
+}
+
+.database-pulse-white {
+  animation: databasePulseWhite 1s ease-in-out infinite;
+}
+
+.text-pulse {
+  position: relative;
+  overflow: hidden;
+}
+
+.text-pulse::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -35%;
+  width: 35%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.2) 15%,
+    rgba(255, 255, 255, 0.4) 30%,
+    rgba(255, 255, 255, 0.6) 42%,
+    rgba(255, 255, 255, 0.75) 48%,
+    rgba(255, 255, 255, 0.8) 50%,
+    rgba(255, 255, 255, 0.75) 52%,
+    rgba(255, 255, 255, 0.6) 58%,
+    rgba(255, 255, 255, 0.4) 70%,
+    rgba(255, 255, 255, 0.2) 85%,
+    transparent 100%
+  );
+  filter: blur(0.5px);
+  animation: textShimmer 1.2s ease-out infinite;
+  pointer-events: none;
+  z-index: 2;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Post request syntax highlighting */
+.syntax-keyword {
+  color: var(--medium-grey);
+}
+.syntax-variable {
+  color: var(--dark-grey);
+}
+.syntax-property {
+  color: var(--medium-dark-grey);
+}
+.syntax-string {
+  color: var(--medium-dark-grey);
+}
+.syntax-punctuation {
+  color: var(--medium-grey);
+}
+
+/* Highlight animation for dummy lines */
+@keyframes highlightLeftToRight {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0% 0 0);
+  }
+}
+
+.dummy-highlight-active {
+  position: relative;
+  overflow: hidden;
+}
+
+.dummy-highlight-active::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: var(--bright-yellow);
+  animation: highlightLeftToRight 0.6s ease-out forwards;
+  pointer-events: none;
+}
+
+/* Final highlight state - no animation, immediately visible */
+.dummy-highlight-final {
+  position: relative;
+  overflow: hidden;
+}
+
+.dummy-highlight-final::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: var(--bright-yellow);
+  clip-path: inset(0 0% 0 0);
+  pointer-events: none;
+}
+
+/* Text focus - behind text, see-through, no rounded corners */
+.text-focus-active {
+  position: relative;
+  overflow: visible;
+  z-index: 0;
+}
+
+.text-focus-active::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgb(177, 209, 250);
+  z-index: -1;
+  border-radius: 0;
+  pointer-events: none;
+}
+
+/* Base highlight - left to right animation */
+.highlight-active {
+  position: relative;
+  overflow: visible;
+  padding: 0;
+  margin: 0;
+  display: inline;
+  line-height: inherit;
+  vertical-align: baseline;
+  z-index: 1;
+}
+
+.highlight-active::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -1px;
+  width: calc(100% + 2px);
+  height: 100%;
+  background: transparent;
+  animation: highlightLeftToRight 0.6s ease-out forwards;
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* Color modifiers for highlight-active */
+.highlight-active.highlight-yellow::after {
+  background: var(--bright-yellow) !important;
+}
+
+.highlight-active.highlight-blue::after {
+  background: var(--light-blue) !important;
+}
+
+.highlight-active.highlight-green::after {
+  background: rgba(40, 200, 64, 0.3) !important;
+}
+
+/* Final highlight state - no animation, immediately visible */
+.highlight-final {
+  position: relative;
+  overflow: visible;
+  padding: 0;
+  margin: 0;
+  display: inline;
+  line-height: inherit;
+  vertical-align: baseline;
+  z-index: 1;
+}
+
+.highlight-final::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -1px;
+  width: calc(100% + 2px);
+  height: 100%;
+  background: transparent;
+  clip-path: inset(0 0% 0 0);
+  pointer-events: none;
+  z-index: -1;
+  animation: none;
+}
+
+/* Color modifiers for highlight-final */
+.highlight-final.highlight-yellow::after {
+  background: var(--bright-yellow) !important;
+}
+
+.highlight-final.highlight-blue::after {
+  background: var(--light-blue) !important;
+}
+
+.highlight-final.highlight-green::after {
+  background: rgba(40, 200, 64, 0.3) !important;
+}
+
+/* Offset modifier for post request positioning */
+.highlight-active.highlight-offset::after,
+.highlight-final.highlight-offset::after {
+  height: calc(100% + 0.5px);
+  top: 0;
+}
+
+.highlight-final.highlight-offset::after {
+  transform: translateY(0.5px);
+}
+
+/* User message fade-in from below */
+@keyframes userMessageFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.user-message-animate {
+  animation: userMessageFadeIn 0.4s ease-out forwards;
+}
+
+/* Assistant message left-to-right reveal */
+@keyframes revealLeftToRight {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0% 0 0);
+  }
+}
+
+.assistant-line-reveal {
+  position: relative;
+  overflow: hidden;
+  animation: revealLeftToRight 0.4s ease-out forwards;
+}
+
+.baby-document-wrapper {
+  transform: scale(0.75) !important;
+  transform-origin: center;
+  overflow: visible;
+}
+
+/* Status transition - smooth fade out and in */
+.status-fade-in {
+  animation: statusFadeOutIn 0.3s ease-in-out forwards;
+}
+
+@keyframes statusFadeOutIn {
+  0% {
+    opacity: 1;
+  }
+  30% {
+    opacity: 0.7;
+  }
+  70% {
+    opacity: 0.7;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+/* Answer section fade-in animation */
+.answer-section-fade-in {
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+/* Paper stack animation - fade in from different angles, preserving rotation */
+@keyframes paperStackFadeIn {
+  0% {
+    opacity: 0;
+    transform: rotate(var(--paper-rotation, 0deg)) scale(0.64)
+      translate(var(--entry-x, 0), var(--entry-y, 0));
+  }
+  100% {
+    opacity: 1;
+    transform: rotate(var(--paper-rotation, 0deg)) scale(0.8) translate(0, 0);
+  }
+}
+
+.paper-stack-animate {
+  animation: paperStackFadeIn 0.3s ease-out forwards;
+  opacity: 0; /* Start hidden, animation will make it visible */
+}
+
+/* Shuffle animation - translate from grid to stack position */
+@keyframes paperStackShuffle {
+  0% {
+    transform: rotate(0deg) scale(0.8) translate(0, 0);
+  }
+  100% {
+    transform: rotate(var(--paper-rotation, 0deg)) scale(0.8)
+      translate(var(--entry-x, 0), var(--entry-y, 0));
+  }
+}
+
+.paper-stack-shuffle {
+  animation: paperStackShuffle 0.3s ease-out forwards;
+  opacity: 1; /* Always visible, no opacity changes */
+}
+
+/* Unshuffle animation - from stack back to grid positions */
+@keyframes paperStackUnshuffle {
+  0% {
+    transform: rotate(var(--paper-rotation, 0deg)) scale(0.8) translate(0, 0);
+  }
+  100% {
+    transform: rotate(0deg) scale(0.8) translate(var(--exit-x, 0), var(--exit-y, 0));
+  }
+}
+
+.paper-stack-unshuffle {
+  animation: paperStackUnshuffle 0.3s ease-out forwards;
+  opacity: 1; /* Always visible, no opacity changes */
+}
+
+/* Indicator path reveal animation - Checkmark */
+@keyframes indicatorPathRevealCheck {
+  from {
+    stroke-dashoffset: var(--path-length, 200);
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Indicator path reveal animation - X (first path) */
+@keyframes indicatorPathRevealXFirst {
+  from {
+    stroke-dashoffset: var(--path-length, 200);
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Indicator path reveal animation - X (second path) */
+@keyframes indicatorPathRevealXSecond {
+  from {
+    stroke-dashoffset: var(--path-length, 200);
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.indicator-path-reveal svg {
+  overflow: visible;
+}
+
+/* Checkmark - single path */
+.indicator-path-reveal svg.indicator-check path {
+  stroke-dasharray: var(--path-length, 200);
+  stroke-dashoffset: var(--path-length, 200);
+  animation: indicatorPathRevealCheck 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none !important;
+}
+
+/* X - first path, animate after second completes */
+.indicator-path-reveal svg.indicator-x path:nth-child(1) {
+  stroke-dasharray: var(--path-length, 200);
+  stroke-dashoffset: var(--path-length, 200);
+  animation: indicatorPathRevealXFirst 0.25s cubic-bezier(0.4, 0, 0.2, 1) 0.25s forwards;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none !important;
+}
+
+/* X - second path, animate immediately (first) */
+.indicator-path-reveal svg.indicator-x path:nth-child(2) {
+  stroke-dasharray: var(--path-length, 200);
+  stroke-dashoffset: var(--path-length, 200);
+  animation: indicatorPathRevealXSecond 0.25s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none !important;
+}
+
+/* Pulsate animation: two pulses over 2000ms to match assistant message duration */
+@keyframes browserWindowPulsate {
+  0% {
+    transform: scale(1);
+  }
+  25% {
+    transform: scale(1.05);
+  }
+  50% {
+    transform: scale(1);
+  }
+  75% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.browser-window-pulsate {
+  animation: browserWindowPulsate 2s ease-in-out;
+}
+
+@keyframes indicatorFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Smooth opacity transition for isActive prop */
+.opacity-transition {
+  transition: opacity var(--opacity-transition-duration) var(--opacity-transition-timing);
+}
